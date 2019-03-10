@@ -173,7 +173,7 @@ public class ExceptioController {
 
 - ViewResolver
 
-  ######   view  
+  view ﹢resolver  = 页面﹢解析器 ->resolveViewName 寻找合适/对应View对象
 
 
 
