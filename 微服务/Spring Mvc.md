@@ -175,7 +175,16 @@ public class ExceptioController {
 
   view ﹢resolver  = 页面﹢解析器 ->resolveViewName 寻找合适/对应View对象
 
+  - CotentNegotiationViewResolver
 
+
+
+# 5. 国际化
+
+- Locale/LocaleContext
+
+- LocaleContextHoler
+- LocaleResolver/LocaleContextResolver
 
 
 
