@@ -3,7 +3,7 @@
 [TOC]
 
 # 1.设置用户名和邮箱：
-git config --global user.name "John Doe"
+git config --global user.name "Joh·n Doe"
 git config --global user.email johndoe@example.com
 
 # 2. 生成密匙：
