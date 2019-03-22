@@ -1,7 +1,5 @@
 [TOC]
 
-
-
 # 1.Java 监听模式
 
 ## 1.1 发布 订阅模式 -推模式
@@ -128,9 +126,78 @@ public class TestSpringEvent {
 
   - `ApplicationFailedEvent`
 
+## 3.1 ConfigFileApplicationListener
+
+`ConfigFileApplicationListener` 管理配置文件，例如application.properties，application-{profile}.properties以及application.yaml。
+
+而`ConfigFileApplicationListener`的文件信息可以在spring-boot 的classpath下的/META-INF/spring.factories文件中可以看到： 
+
+java SPI 是 java.util.ServiceLoader
+
+Spring SPI  :
+
+```properties
+# Application Listeners
+org.springframework.context.ApplicationListener=\
+org.springframework.boot.ClearCachesApplicationListener,\
+org.springframework.boot.builder.ParentContextCloserApplicationListener,\
+org.springframework.boot.context.FileEncodingApplicationListener,\
+org.springframework.boot.context.config.AnsiOutputApplicationListener,\
+org.springframework.boot.context.config.ConfigFileApplicationListener,\
+org.springframework.boot.context.config.DelegatingApplicationListener,\
+org.springframework.boot.context.logging.ClasspathLoggingApplicationListener,\
+org.springframework.boot.context.logging.LoggingApplicationListener,\
+org.springframework.boot.liquibase.LiquibaseServiceLocatorApplicationListener
+```
+
+ 
+
+# 4. SpringCloud 事件监听
+
+​    全局搜索spring.factories，可以查找到这个文件，从而看到事件如下：
+
+```properties
+# AutoConfiguration
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+org.springframework.cloud.autoconfigure.ConfigurationPropertiesRebinderAutoConfiguration,\
+org.springframework.cloud.autoconfigure.LifecycleMvcEndpointAutoConfiguration,\
+org.springframework.cloud.autoconfigure.RefreshAutoConfiguration,\
+org.springframework.cloud.autoconfigure.RefreshEndpointAutoConfiguration,\
+org.springframework.cloud.autoconfigure.WritableEnvironmentEndpointAutoConfiguration
+# Application Listeners
+org.springframework.context.ApplicationListener=\
+org.springframework.cloud.bootstrap.BootstrapApplicationListener,\
+org.springframework.cloud.bootstrap.LoggingSystemShutdownListener,\
+org.springframework.cloud.context.restart.RestartListener
+# Bootstrap components
+org.springframework.cloud.bootstrap.BootstrapConfiguration=\
+org.springframework.cloud.bootstrap.config.PropertySourceBootstrapConfiguration,\
+org.springframework.cloud.bootstrap.encrypt.EncryptionBootstrapConfiguration,\
+org.springframework.cloud.autoconfigure.ConfigurationPropertiesRebinderAutoConfiguration,\
+org.springframework.boot.autoconfigure.context.PropertyPlaceholderAutoConfiguration
+```
+
+## 4.1 BootstrapApplicationListener
+
+  BootstrapApplicationListener 这个类负责监听bootstrap.properties或者bootstrap.yml。
 
 
-`ConfigFileApplicationListener` 管理配置文件，例如application.properties以及application.yaml
+
+```xml
+建议把这个包导入，可以监听一些信息
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-actuator</artifactId>
+</dependency>
+
+//然后在application.properties中加入 配置,这里是关闭授权
+management.security.enabled=false
+
+//这个可以看到你当前服务的所有上下文bean
+然后访问localhost:8080/beans
+```
+
+
 
 
 
