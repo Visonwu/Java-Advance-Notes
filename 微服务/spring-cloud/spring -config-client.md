@@ -134,7 +134,7 @@ public class TestSpringEvent {
 
 java SPI 是 java.util.ServiceLoader
 
-Spring SPI  :
+Spring 的 SPI  :
 
 ```properties
 # Application Listeners
