@@ -6,9 +6,15 @@
 
 # 1.ArrayList
 
-   默认初始大小是10，扩容按照1.5 扩容
+- 默认初始大小是10，扩容按照1.5 扩容
 
 `int newCapacity = oldCapacity + (oldCapacity >> 1);`
+
+   
+
+- 也可以自定义初始化大小`ArrayList(int initialCapacity)`
+
+    如果给定的大小为9：那么扩容 按照9+9/2=13获取结果
 
 
 
