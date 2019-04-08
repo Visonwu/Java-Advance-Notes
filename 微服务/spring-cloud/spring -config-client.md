@@ -179,10 +179,6 @@ org.springframework.boot.autoconfigure.context.PropertyPlaceholderAutoConfigurat
 
 ## 4.1 BootstrapApplicationListener
 
-  BootstrapApplicationListener 这个类负责监听bootstrap.properties或者bootstrap.yml。
-
-
-
 ```xml
 建议把这个包导入，可以监听一些信息
 <dependency>
@@ -195,11 +191,102 @@ management.security.enabled=false
 
 //这个可以看到你当前服务的所有上下文bean
 然后访问localhost:8080/beans
+
+//获取当前spring-cloud的运行环境信息
+localhost:8080/env
+....
+```
+
+## 1）BootstrapApplicationListener优先级
+
+> ` BootstrapApplicationListener`加载的优先级是优于`ConfigFileApplicationListener`的。
+>
+> 所以spring.cloud的内部bootstrap配置名，通过application.propertis配置是无效的，
+>
+> 当然可以通过命令启动来配置
+>
+> 原因在于：`BootstrapApplicationListener`的order（6）值小于`ConfigFileApplicationListener`（order=11），可以参考源码
+
+
+
+  ## 2）BootstrapApplicationListener 作用
+
+- 这个类负责加载bootstrap.properties或者bootstrap.yml
+
+- 负责初始化BootStrap ApplicationContext ID ='bootstrap'
+
+  - ```
+    ConfigurableApplicationContext context =builder.run();
+    ```
+
+> Boostrap是一个根Spring上下文，parent=null;
+>
+> 这里有点类似 Java中的ClassLoader加载器，
+
+
+
+## 3）Bootstrap 的配置属性
+
+- Bootstrap配置文件路径：spring.cloud.bootstrap.location
+
+- 覆盖远程属性：spring.cloud.config.allowOverride
+
+- 自定义Bootstrap配置：@BootstrapConfiguration
+
+- 自定义Bootstrap配置属性源：PropertySourceLocator
+
+  - 实现`PropertySourceLocator`接口,并作配置配放到IOC容器中，实现这个接口
+
+  - 重新在当前的资源路径下添加/META-INF/spring.factories定义
+
+    `org.springframework.cloud.bootstrap.BootstrapConfiguration= com.xxx.自定义的类全路径`
+
+
+
+## 4) Environment
+
+`ENv端点`：EnvironmentEndPoint
+
+`Environment`关联多个带名称的`PropertySource`,Environment允许同名，优先级高胜出
+
+内部实现
+
+```java
+public class MutablePropertySources implements PropertySources {
+
+	private final List<PropertySource<?>> propertySourceList = new CopyOnWriteArrayList<>();
+    ...
+}
+
+//propertySourceList  FIFO
+//MutablePropertySources提供addFirst和addLast提高优先级
 ```
 
 
 
+SpringFramework启动的时候调用,源码调用过程如下：
 
+```java
+AbstractApplication	refresh() ->prepareRefresh() -> initPropertySources
 
+->最后调用到AbstractRefreshableWebApplicationContext 的initPropertySources()
+@Override
+protected void initPropertySources() {
+		ConfigurableEnvironment env = getEnvironment();
+		if (env instanceof ConfigurableWebEnvironment) {
+			((ConfigurableWebEnvironment) env).initPropertySources(this.servletContext, this.servletConfig);
+		}
+}
+```
 
+`Environment`有两种实现方式：
+
+- 普通类型`StandardEnvironment`
+- Web类型`StandardServletEnvironment`
+
+`Environment`关联着一个`PropertySource`实例；`PropertySources`关联着多个`PropertySource`，并且有优先级;
+
+比较常用的PropertySource：
+
+`SystemEnvironmentPropertySource`
 
