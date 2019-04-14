@@ -175,3 +175,55 @@ channel.queueBind("unroutedQueue","myAe","");
 
 ![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g22jmo47gfj20g3051t91.jpg)
 
+
+
+# 6. 优先级队列
+
+​	优先级队列，顾名思义，具有高优先级的队列具有高的优先权，优先级高的消息具备优先被消费的特权。
+
+**设置一个队列的最大优先级：**
+
+```java
+Map<String, Object> argss = new HashMap<String, Object>();
+argss.put("x-max-priority",10);  // 队列最大优先级
+channel.queueDeclare("ORIGIN_QUEUE", false, false, false, argss);
+```
+
+**发送消息时指定消息当前的优先级：**
+
+```java
+AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder()
+   .priority(5)  // 消息优先级
+   .build();
+channel.basicPublish("", "ORIGIN_QUEUE", properties, msg.getBytes());
+```
+
+​	**优先级高的消息可以优先被消费，但是：只有消息堆积（消息的发送速度大于消费者的消费速度）的情况下优先级才有意义。**
+
+
+
+# 7. 限流
+
+​	再某种情况下需要对一定的消息做限流，那么怎么才能够做到限流呢？
+
+## 7.1 服务端流控（Flow Control）
+
+​	RabbitMQ 会在启动时检测机器的物理内存数值。默认当 MQ 占用 40% 以上内存时，MQ 会主动抛出一个内存警告并阻塞所有连接（Connections）。可以通过修改 rabbitmq.config 文件来调整内存阈值，默认值是 0.4，如下所示： [{rabbit, [{vm_memory_high_watermark, 0.4}]}].
+
+​	默认情况，如果剩余磁盘空间在 1GB 以下，RabbitMQ 主动阻塞所有的生产者。这个阈值也是可调的。
+
+
+
+**注意：队列长度只在消息堆积的情况下有意义，而且会删除先入队的消息，不能实现服务端限流**
+
+## 7.2 消费端限流
+
+​	在AutoACK为false的情况下，如果一定数目的消息（通过基于consumer或者channel设置Qos的值）未被确认前，不进行消费新的消息。
+
+```java
+channel.basicQos(2); // 如果超过2条消息没有发送ACK，当前消费者不再接受队列消息
+channel.basicConsume(QUEUE_NAME, false, consumer);
+```
+
+
+
