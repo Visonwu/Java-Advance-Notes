@@ -55,7 +55,7 @@
 
   因此2.8.18以后的版本，Redis引入了无硬盘复制选项，可以不需要通过RDB文件去同步，直接发送数据，过以下配置来开启该功能：
   repl-diskless-sync yes
-  master**在内存中直接创建rdb，然后发送给slave，不会在自己本地落地磁盘了
+  master在内存中直接创建rdb，然后发送给slave，不会在自己本地落地磁盘了
 
 ## 2 哨兵机制
 
@@ -80,7 +80,7 @@
 -  需要相互感知的sentinel都向他们共同监视的master节点订阅channel:sentinel:hello
 - 新加入的sentinel节点向这个channel发布一条消息，包含自己本身的信息，这样订阅了这个channel的sentinel就可以发现这个新的sentinel
 
-- 新加入得sentinel和其他sentinel节点建立长连接
+- 新加入的sentinel和其他sentinel节点建立长连接
 
 ![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g1okizinh7j20fs093aaj.jpg)
 

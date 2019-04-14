@@ -255,3 +255,128 @@ management.security.enabled = false
 
 ```
 
+
+
+# 4.Euraka的高可用
+
+## 4.1 Euraka客户端高可用
+
+### 1) 高可用注册中心集群
+
+​	 只需要增加 Eureka 服务器注册URL；如果 Eureka 客户端应用配置多个 Eureka 注册服务器，那么默认情况只有第一台可用的服务器，存在注册信息。如果 第一台可用的 Eureka 服务器 Down 掉了，那么 Eureka 客户端应用将会选择下一台可用的 Eureka 服务器。，
+
+```properties
+## Eureka Server 服务 URL,用于客户端注册,逗号分隔
+eureka.client.serviceUrl.defaultZone=\
+  http://localhost:9090/eureka,http://localhost:9091/eureka
+```
+
+#### 配置源码(EurekaClientConfigBean)
+
+​	配置项 `eureka.client.serviceUrl` 实际映射的字段为 `serviceUrl `，它是 Map 类型，
+
+**Key 为自定义**，默认值`defaultZone`，value 是需要配置的Eureka 注册服务器URL。
+
+```java
+private Map<String, String> serviceUrl = new HashMap<>();
+{
+  this.serviceUrl.put(DEFAULT_ZONE, DEFAULT_URL);
+}
+
+```
+
+**value 可以是多值字段**，通过`,` 分割，源码如下：
+
+```java
+String serviceUrls = this.serviceUrl.get(myZone);
+if (serviceUrls == null || serviceUrls.isEmpty()) {
+   serviceUrls = this.serviceUrl.get(DEFAULT_ZONE);
+}
+if (!StringUtils.isEmpty(serviceUrls)) {
+   final String[] serviceUrlsSplit = StringUtils.commaDelimitedListToStringArray(serviceUrls);
+}
+
+```
+
+
+
+### 2）获取注册信息时间间隔
+
+Eureka 客户端需要获取 Eureka 服务器注册信息，这个方便服务调用。
+
+> Eureka 客户端：EurekaClient,关联应用集合：Applications
+>
+> 单个应用信息：Application，关联多个应用实例
+>
+> 单个应用实例：InstanceInfo
+
+​	当 Eureka 客户端需要调用具体某个服务时，比如user-service-consumer 调用user-service-provider，user-service-provider实际对应对象是Application,关联了许多应用实例(InstanceInfo)。
+
+​	如果应用user-service-provider的应用实例发生变化时，那么user-service-consumer是需要感知的。比如：user-service-provider机器从10 台降到了5台，那么作为调用方的user-service-consumer需要知道这个变化情况。可是这个变化过程，可能存在一定的延迟，可以通过调整注册信息时间间隔来减少错误。
+
+消费端加上如下配置
+
+```properties
+## 调整注册信息的获取周期，默认值：30秒
+eureka.client.registryFetchIntervalSeconds = 5
+```
+
+
+
+### 3）获取信息复制时间间隔
+
+​	具体就是客户端信息的上报到 Eureka 服务器时间。当 Eureka 客户端应用上报的频率越频繁，那么 Eureka 服务器的应用状态管理一致性就越高。
+
+```properties
+## 调整客户端应用状态信息上报的周期
+eureka.client.instanceInfoReplicationIntervalSeconds = 5
+```
+
+> Eureka 的应用信息获取的方式：拉模式
+>
+> Eureka 的应用信息上报的方式：推模式
+
+
+
+### 4) 实例ID
+
+​	从 **Eureka Server Dashboard** 里面可以看到具体某个应用中的实例信息，比如：
+
+`UP (2) - 192.168.1.103:user-service-provider:7075 , 192.168.1.103:user-service-provider:7078`
+
+
+
+其中，它们命名模式：${hostname}:${spring.application.name}:${server.port}
+
+**源码类**：`EurekaInstanceConfigBean`
+
+**客户端配置**
+
+```properties
+## Eureka 应用实例的ID
+eureka.instance.instanceId = ${spring.application.name}:${server.port}
+```
+
+
+
+### 5) 服务端点映射
+
+​	这个是从`Eureka Server Dashboard`的status看到服务注册在注册中心的地址信息列表，当你点击这个链接这个地址应该跳转到哪个网址？
+
+**源码位置**：`EurekaInstanceConfigBean`
+
+```java
+private String statusPageUrlPath = "/info";
+```
+
+**客户端配置：**
+
+```properties
+## Eureka 客户端应用实例状态 URL
+eureka.instance.statusPageUrlPath = /health
+```
+
+
+
+## 4.2 Euraka服务端高可用
+
