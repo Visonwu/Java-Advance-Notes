@@ -259,6 +259,10 @@ management.security.enabled = false
 
 # 4.Euraka的高可用
 
+涉及客户端和服务端的的高可用：
+
+![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g261n3j8y5j20ff0a2dgh.jpg)
+
 ## 4.1 Euraka客户端高可用
 
 ### 1) 高可用注册中心集群
@@ -328,7 +332,7 @@ eureka.client.registryFetchIntervalSeconds = 5
 ​	具体就是客户端信息的上报到 Eureka 服务器时间。当 Eureka 客户端应用上报的频率越频繁，那么 Eureka 服务器的应用状态管理一致性就越高。
 
 ```properties
-## 调整客户端应用状态信息上报的周期
+## 调整客户端应用状态信息上报的周期 
 eureka.client.instanceInfoReplicationIntervalSeconds = 5
 ```
 
@@ -366,13 +370,13 @@ eureka.instance.instanceId = ${spring.application.name}:${server.port}
 **源码位置**：`EurekaInstanceConfigBean`
 
 ```java
-private String statusPageUrlPath = "/info";
+private String statusPageUrlPath = "/info"; //默认值，
 ```
 
 **客户端配置：**
 
 ```properties
-## Eureka 客户端应用实例状态 URL
+## Eureka 客户端应用实例状态 URL  ；可以修改为这个health
 eureka.instance.statusPageUrlPath = /health
 ```
 
@@ -380,3 +384,44 @@ eureka.instance.statusPageUrlPath = /health
 
 ## 4.2 Euraka服务端高可用
 
+**原理：**构建 Eureka 服务器相互注册
+
+**服务器一**：如下：Eureka Server 1 -> 设置Profile : peer1 -----即application-peer1.properties
+
+```properties
+### Eureka Server 应用名称
+spring.application.name = spring-cloud-eureka-server
+### Eureka Server 服务端口
+server.port= 9090
+### 服务器注册 另外一个Eureka服务器
+eureka.client.register-with-eureka=true
+### 注册中心的服务器，检索另外一个Eureka服务器
+eureka.client.fetch-registry = true
+## Eureka Server 服务 URL,用于客户端注册
+## 当前 Eureka 服务器 向 9091（Eureka 服务器） 复制数据
+eureka.client.serviceUrl.defaultZone=\
+  http://localhost:9091/eureka
+```
+
+
+
+**服务器二** ：如下：Eureka Server2 -> 设置Profile : peer2 -----即application-peer2.properties
+
+```properties
+### Eureka Server 应用名称
+spring.application.name = spring-cloud-eureka-server
+### Eureka Server 服务端口
+server.port= 9091
+### 服务器注册 另外一个Eureka服务器9090
+eureka.client.register-with-eureka=true
+### 注册中心的服务器，检索另外一个Eureka服务器
+eureka.client.fetch-registry = true
+## Eureka Server 服务 URL,用于客户端注册
+## 当前 Eureka 服务器 向 9090（Eureka 服务器） 复制数据
+eureka.client.serviceUrl.defaultZone=\
+  http://localhost:9090/eureka
+```
+
+
+
+​	可以在IDEA的启动参数(本地测试写在同一个项目中的两个配置文件)中通过通过`--spring.profiles.active=peer1` 和 `--spring.profiles.active=peer2` 分别激活 Eureka Server 1 和 Eureka Server 2

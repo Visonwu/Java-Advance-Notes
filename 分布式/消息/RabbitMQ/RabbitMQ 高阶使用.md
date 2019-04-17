@@ -227,3 +227,35 @@ channel.basicConsume(QUEUE_NAME, false, consumer);
 
 
 
+# 8.UI管理界面
+
+## 8.1 Windows启用管理插件
+
+```java
+cd C:\Program Files\RabbitMQ Server\rabbitmq_server-3.6.6\sbin
+rabbitmq-plugins.bat enable rabbitmq_management
+```
+
+## 8.2 Linux启用管理插件
+
+```java
+cd /usr/lib/rabbitmq/bin
+./rabbitmq-plugins enable rabbitmq_management
+```
+
+## 8.3 管理界面访问端口
+
+默认端口是15672，默认用户guest，密码guest。guest用户默认只能在本机访问
+
+## 8..4 Linux 创建RabbitMQ用户
+
+例如创建用户admin，密码admin，授权访问所有的Vhost
+
+```java
+firewall-cmd --permanent --add-port=15672/tcp
+firewall-cmd --reload
+rabbitmqctl add_user admin admin
+rabbitmqctl set_user_tags admin administrator
+rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
+```
+
