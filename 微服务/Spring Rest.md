@@ -488,3 +488,42 @@ public class PersonController {
     person.id=1
     person.name=vison
 ```
+
+# 3.Spring RestTemplate
+
+**1) HTTP消息装换器：HttpMessageConvertor**
+
+- 自定义实现
+
+- 编码问题
+
+- 切换序列化/反序列化协议
+
+**2) HTTP Client 适配工厂：ClientHttpRequestFactory**
+
+这个方面主要考虑大家的使用 HttpClient 偏好：
+
+- Spring 实现
+  - SimpleClientHttpRequestFactory
+- HttpClient
+
+
+​	- HttpComponentsClientHttpRequestFactory
+
+- OkHttp
+
+  - OkHttp3ClientHttpRequestFactory
+
+  - OkHttpClientHttpRequestFactory
+
+举例说明：
+
+```java
+//切换HTTP 通讯实现，提升性能
+RestTemplate restTemplate = new RestTemplate(new HttpComponentsClientHttpRequestFactory()); // HTTP Client
+```
+
+**3) HTTP 请求拦截器：ClientHttpRequestInterceptor**
+
+加深RestTemplate 拦截过程的
+

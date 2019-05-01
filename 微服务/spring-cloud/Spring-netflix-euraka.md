@@ -425,3 +425,13 @@ eureka.client.serviceUrl.defaultZone=\
 
 
 ​	可以在IDEA的启动参数(本地测试写在同一个项目中的两个配置文件)中通过通过`--spring.profiles.active=peer1` 和 `--spring.profiles.active=peer2` 分别激活 Eureka Server 1 和 Eureka Server 2
+
+
+
+# 5.eureka 可以替换为 zookeeper和consoul 那么这几个使用有什么差异?
+
+答：
+
+https://www.consul.io/intro/vs/zookeeper.html
+
+https://www.consul.io/intro/vs/eureka.html
