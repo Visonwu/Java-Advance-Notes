@@ -110,9 +110,17 @@
 
 
 
+## 3. 其他
+
+对象 生命周期
+
+- SqlSessionTemplate： Spring 中 SqlSession 的替代品，是线程安全的，通过代理的方式调用DefaultSqlSession 的方法
+- SqlSessionInterceptor：（ 内部类） 代理对象，用来代理 DefaultSqlSession，在 SqlSessionTemplate 中使用
+- SqlSessionDaoSupport ：用于获取 SqlSessionTemplate，只要继承它即可
+- MapperFactoryBean 注册到 IOC 容器中替换接口类，继承了 SqlSessionDaoSupport 用来获取SqlSessionTemplate，因为注入接口的时候，就会调用它的 getObject()方法
+- SqlSessionHolder 控制 SqlSession 和事务
 
 
 
-
-
+**我们的Spring集成Mybatis有多种方式调用**
 
