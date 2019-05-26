@@ -27,7 +27,23 @@
 
 
 
-## 1.4 Docker 工作原理
+## 1.4 Docker镜像
+
+​	**Docker镜像是一个联合文件系统**; 拉去 一个image,会自动把相关的依赖都会拉去成功，比如pull 一个tomcat，那么会自动把java，linux系统都会pull下来。
+
+​	另外由于docker使用自身机器的内核，所以只是单纯的拉去一个centos，会发现只有很小的空间。如果是传统的虚拟机那就是把整个内核和系统工具都拉去，所以很大有几个G左右。
+
+![imageDocker](//ws1.sinaimg.cn/mw690/b8a27c2fgy1g3ezu4cqhej20bj07bwi0.jpg)
+
+```bash
+1.BootFS 主要包含BootLoader 和Kernel,
+	BootLoader主要是引导加载Kernel, 当Boot成功后，Kernel被加载到内存中BootFS就被Umount了。
+2.RootFS包含的就是典型 Linux 系统中的/dev、/proc、/bin 等标准目录和文件。
+```
+
+
+
+## 1.5 Docker 工作原理
 
 ![dockerRun](//ws1.sinaimg.cn/mw690/b8a27c2fgy1g3etfg0f17j20jd0dbgni.jpg)
 
