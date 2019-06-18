@@ -231,7 +231,9 @@ person-client 可以感知 person-service 应用存在的，并且 Spring Cloud 
 
 ## 1. 关闭 Eureka 注册
 
-**调整 person-client 关闭 Eureka**
+不关闭Eureka会出现错误
+
+调整 person-client 关闭 Eureka**
 
 ```properties
 ribbon.eureka.enabled = false
@@ -399,6 +401,27 @@ public class PersonClientApplication {
     public FirstServerForeverRule firstServerForeverRule() {
         return new FirstServerForeverRule();
     }
+}
+```
+
+
+
+## 注：
+
+原始的**restTemplate** 可以通过如下方式实现
+
+```java
+@HystrixCommand(fallbackMethod = "hellofallback")
+@Override
+public String sayHello(String name) {
+    String entity = restTemplate.getForObject(PROVIDER_SERVER_URL_PREFIX+"/demo?name={1}", String.class, name);
+    
+    return "consumed: "+entity;
+}
+
+private String hellofallback(String name){
+    
+    return "failed to fetch"+name;
 }
 ```
 

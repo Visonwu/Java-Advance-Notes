@@ -1,4 +1,10 @@
-  通过Spring Cloud Ribbon的封装，我们在微服务架构中使用客户端负载均衡调用非常简单，只需要如下两步：
+  
+
+​		Ribbon是一个客户端负载平衡器，它为您提供了对HTTP和TCP客户机行为的大量控制。Feign已经使用Ribbon。
+
+
+
+通过Spring Cloud Ribbon的封装，我们在微服务架构中使用客户端负载均衡调用非常简单，只需要如下两步：
 
 ​        ▪️服务提供者只需要启动多个服务实例并注册到一个注册中心或是多个相关联的服务注册中心。
 
@@ -6,25 +12,37 @@
 
 ----
 
+​	
+
+# 1.RestTemplate
+
+**使用**
+
+```java
+@LoadBalanced
+RestTemplate restTemplate;
+
+ResponseEntity<User> responseEntity =new RestTemplate()
+        .getForEntity("http://USER-SERVER/user/uid={1}",User.class,1);
+
+User body = responseEntity.getBody();
+```
+
 ​	RestTemplate增加一个LoadBalancerInterceptor，调用Netflix 中的LoadBalander实现，根据 Eureka 客户端应用获取目标应用 IP+Port 信息，轮训的方式调用。
 
 
+
+# 2. 涉及到的源码类
 
 **实际请求客户端**
 
 - LoadBalancerClient
   - RibbonLoadBalancerClient
 
- 
-
 **负载均衡上下文**
 
 - LoadBalancerContext
   - RibbonLoadBalancerContext
-
-
-
-
 
 **负载均衡器**
 
@@ -33,10 +51,8 @@
     - DynamicServerListLoadBalancer
    - ZoneAwareLoadBalancer
   - NoOpLoadBalancer
-
-
-
-
+  
+  
 
 **负载均衡规则**
 
@@ -62,11 +78,7 @@
 
 
 
-
-
-PING 策略
-
-**核心策略接口**
+**PING核心策略接口**
 
 - IPingStrategy
 
@@ -83,7 +95,5 @@ PING 策略
   - PingConstant
 
   - PingUrl  Discovery Client 实现
-
-##### 
 
 - NIWSDiscoveryPing

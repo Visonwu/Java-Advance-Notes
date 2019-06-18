@@ -72,10 +72,15 @@ lvm2
 
 2.sudo yum-config-manager \
 --add-repo \
-https://download.docker.com/linux/cen
-tos/docker-ce.repo
+https://download.docker.com/linux/centos/docker-ce.repo
 
-3.sudo yum install docker-ce
+#使用阿里镜像
+sudo yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+
+#更行yum缓存
+2.1 sudo yum makecache fast 
+
+3.sudo yum -y install docker-ce
 
 4.sudo systemctl start docker
 
