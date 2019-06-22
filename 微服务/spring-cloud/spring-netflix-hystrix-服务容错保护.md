@@ -1,18 +1,28 @@
+**Hystrix提供了功能：**
+
+- 熔断
+
+- 隔离
+
+- Fallback
+
+- cache
+
+- 监控等功能，能够在一个、或多个依赖同时出现问题时保证系统依然可用
+
+---
+
 		`Spring-cloud- Hystrix` 是基于开源框架netflix的`Hystrix` 实现的，Hystrix具备服务降级，服务熔断，线程和信号隔离，请求缓存，请求合并以及服务监控等功能。
 
 参考：<https://github.com/Netflix/Hystrix/wiki/How-To-Use>
 
-
+注意：Hystrix 可以是服务端实现，也可以是客户端实现，类似于 AOP 封装：正常逻辑、容错处理。
 
 # 一、Hystrix 使用
 
 ##  1.Hystrix的简单使用
 
-
-
 ​	使用  `@HystrixCommand`默认远程服务不可用，或者调用超时都会触发失败方法的调用。超时默认是2000ms
-
-
 
 **步骤一:**引入依赖
 

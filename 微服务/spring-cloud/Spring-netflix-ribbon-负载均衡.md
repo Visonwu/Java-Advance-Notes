@@ -1,8 +1,14 @@
-  
+**Ribbon提供功能：**
+
+- 负载均衡
+
+- 容错性
+- 异步，reactive模型的多协议支持（Http，TCP，Udp）
+- 缓存和批处理
+
+---
 
 ​		Ribbon是一个客户端负载平衡器，它为您提供了对HTTP和TCP客户机行为的大量控制。Feign已经使用Ribbon。
-
-
 
 通过Spring Cloud Ribbon的封装，我们在微服务架构中使用客户端负载均衡调用非常简单，只需要如下两步：
 
@@ -275,12 +281,66 @@ ribbon.<key> = <value>
 
 ## 2）指定客户端配置
 
-```java
+```properties
 <clientName>.ribbon.<key>=<value>
-
 //例如
 hello-service.ribbon.listOfServers=localhost:8081,localhost:8082,localhost:8083
 ```
 
 
+
+# 5 .结合Eureka，默认配置自动修改
+
+在Spring-Cloud的应用中引入了Ribbon和Eureka，那么会触发Eureka对Ribbon的自动化配置
+
+- ```properties
+  ServerList 维护机制 使用DiscoveryEnabledNIWSServerList 交给Eureka来管理服务清单
+  ServerList 接口实现采用DomainExtractingServerList
+  ```
+
+- ```properties
+  IPing 使用NIWSDiscoveryPing
+  ```
+
+  
+
+​        所以当和Eureka结合使用后，就不用采用类似`hello-service.ribbon.listOfServers`来指定具体的服务实例清单。当然也可以通过之前的<client>完成各个微服务的个性化配置
+
+同样Spring cloud默认采用了区域亲和策略，所以也可以采用Eureka实例的元数据来实现区域化的实例配置方案。实现方案如下：
+
+```properties
+#指定自己所在的区域
+eureka.instance.metadataMap.zone=shanghai
+```
+
+​     如果在Eureka中需要禁用对Ribbon服务实例的维护实现，只需要在配置文件加入如下参数。这样又回到<client>.ribbon.listOfServers参数的配置方式来实现
+
+```properties
+ribbon.eureka.enabled=false
+```
+
+
+
+# 6.重试机制
+
+Spring-Cloud整合了Retry机制来增强RestTemplate的重试能力，所有一般只需要添加如下配置即可:
+
+```properties
+# 开启重试
+spring.cloud.loadbalancer.retry.enabled=true
+#断路器的超时时间需要大于ribbon的超时时间，不然不会触发重试
+hystrix.command.default.execution.isolation.thread.timeoutInMilliseconds=10000
+#请求连接的超时时间
+hello-service.ribbon.ConnectionTimeout=250
+#请求处理的超时时间
+hello-service.ribbon.ReadTimeout=1000
+#对所有的操作请求都进行重试
+hello-service.ribbon.OkToRetryOnAllOperations=true
+#切换实例的请求重试次数
+hello-service.ribbon.MaxAutoRetriesNextServer=1
+#对当前实例的重试次数
+hello-service.ribbon.MaxAutoRetries=1
+
+#根据这个配置，如果当前这个服务实例有故障，就在请求一次；如果还是失败，就会切换一个服务实例再次请求。
+```
 
