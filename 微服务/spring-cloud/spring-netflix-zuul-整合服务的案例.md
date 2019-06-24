@@ -14,9 +14,7 @@ Spring Cloud 学习技巧：
 
 善于定位应用：Feign、Config Server、Eureka、Zuul 、Ribbon定位应用，配置方式是不同
 
-
-
-### 增加 @EnableZuulProxy
+## 1.创建spring-cloud-zuul应用
 
 ```java
 package com.gupao.springcloudzuuldemo;
@@ -37,15 +35,13 @@ public class SpringCloudZuulDemoApplication {
 
 ```
 
-
-
-## 配置路由规则
+#### 1）配置路由规则
 
 基本模式：`zuul.routes.${app-name} = /${app-url-prefix}/**`
 
 
 
-## 整合 Ribbon
+## 2.Zuul整合 Ribbon
 
 ### 启动应用
 
@@ -85,11 +81,9 @@ person-service.ribbon.listOfServers = \
 
 
 
-##  整合 Eureka
+##  3.Zuul整合 Eureka
 
-
-
-### 引入 spring-cloud-starter-eureka 依赖
+### zuul项目eureka 依赖
 
 ```xml
 <!-- 增加 Eureka 客户端的依赖 -->
@@ -157,7 +151,7 @@ eureka.client.serviceUrl.defaultZone=\
 
 
 
-## 整合 Hystrix
+## 4.整合 Hystrix
 
 
 
@@ -266,21 +260,15 @@ public class PersonServiceProviderController {
 
 
 
-## 整合 Feign
+## 5.整合 Feign
 
 ### 服务消费端：person-client
-
-
 
 #### 调用链路
 
 spring-cloud-zuul -> person-client -> person-service
 
-
-
 #### person-client 注册到 EurekaServer
-
-
 
 > 端口信息：
 >
@@ -342,13 +330,11 @@ person-client.ribbon.listOfServers = \
 
 
 
-## 整合 Config Server
+## 6.整合 Config Server
 
-前面的例子展示 Zuul 、Hystrix、Eureka 以及 Ribbon 能力，可是配置相对是固定，真实线上环境需要一个动态路由，即需要动态配置。
+​	  前面的例子展示 Zuul 、Hystrix、Eureka 以及 Ribbon 能力，可是配置相对是固定，真实线上环境需要一个动态路由，即需要动态配置。
 
-
-
-### 配置服务器：spring-cloud-config-server
+#### 步骤一：新建config-server项目
 
 > 端口信息：
 >
@@ -364,7 +350,7 @@ person-client.ribbon.listOfServers = \
 
 
 
-#### 调整配置项
+#### 步骤二：config-server的配置设置
 
 ```properties
 ### 配置服务器配置项
@@ -385,17 +371,17 @@ endpoints.health.sensitive = false
 
 
 
-#### 为  spring-cloud-zuul 增加配置文件
+#### 步骤三：config-server配置的（git）目录中配置
 
-三个 profile 的配置文件：
+不同环境配置，这里zuul的配置放在git中，由config-server管理调用
+
+##### 1）添加三个 profile 的配置文件：
 
 * zuul.properties
 * zuul-test.properties
 * zuul-prod.properties
 
-
-
-zuul.properties
+**zuul.properties**
 
 ```properties
 ## 应用 spring-cloud-zuul 默认配置项（profile 为空)
@@ -406,7 +392,7 @@ zuul.properties
 zuul.routes.person-service = /person-service/**
 ```
 
-zuul-test.properties
+**zuul-test.properties**
 
 ```properties
 ## 应用 spring-cloud-zuul 默认配置项（profile == "test")
@@ -417,7 +403,7 @@ zuul-test.properties
 zuul.routes.person-client = /person-client/**
 ```
 
-zuul-prod.properties
+**zuul-prod.properties**
 
 ```properties
 ## 应用 spring-cloud-zuul 默认配置项（profile == "prod")
@@ -431,9 +417,7 @@ zuul.routes.person-service = /person-service/**
 zuul.routes.person-client = /person-client/**
 ```
 
-
-
-#### 初始化 ${user.dir}/src/main/resources/configs 为 git 根目录
+##### 2）初始化 ${user.dir}/src/main/resources/configs 为 git 根目录
 
 1. 初始化
 
@@ -461,9 +445,11 @@ $ git commit -m "Temp commit"
 
 以上操作为了让 Spring Cloud Git 配置服务器实现识别 Git 仓库，否则添加以上三个文件也没有效果。
 
-#### 注册到 Eureka 服务器
+#### 步骤四：将config-server注册到 Eureka 服务器
 
-##### 增加 spring-cloud-starter-eureka 依赖
+​	这里config-server服务实例也交给Eureka管理。
+
+##### 1）增加 spring-cloud-starter-eureka 依赖
 
 ```xml
 <!-- 增加 Eureka 客户端的依赖 -->
@@ -473,7 +459,7 @@ $ git commit -m "Temp commit"
 </dependency>
 ```
 
-##### 激活服务注册、发现客户端
+##### 2）激活服务注册、发现客户端
 
 ```java
 package com.gupao.springcloudconfigserverdemo;
@@ -500,9 +486,7 @@ public class SpringCloudConfigServerDemoApplication {
 }
 ```
 
-
-
-##### 调整配置项
+##### 3）调整配置项
 
 ```properties
 ## Eureka Server 服务 URL,用于客户端注册
@@ -510,9 +494,7 @@ eureka.client.serviceUrl.defaultZone=\
   http://localhost:12345/eureka
 ```
 
-
-
-#### 测试配置
+##### 4）测试配置
 
 http://localhost:10000/zuul/default
 
@@ -520,9 +502,7 @@ http://localhost:10000/zuul/test
 
 http://localhost:10000/zuul/prod
 
-
-
-### 配置网关服务：spring-cloud-zuul
+#### 步骤五：配置网关服务：spring-cloud-zuul
 
 > 端口信息：
 >
@@ -534,9 +514,9 @@ http://localhost:10000/zuul/prod
 >
 > Eureka Server 端口：12345
 
+##### 1）增加 spring-cloud-starter-config 依赖
 
-
-####  增加 spring-cloud-starter-config 依赖
+​		这里把spring-cloud-zuul作为config的客户端，然后从config服务器拉取配置信息。
 
 > 将之前：
 >
@@ -554,9 +534,9 @@ http://localhost:10000/zuul/prod
 </dependency>
 ```
 
-#### 创建 bootstrap.properties
+##### 2）创建 bootstrap.properties
 
-#### 配置 config 客户端信息
+​	在bootstrap.properties中配置 config 客户端信息
 
 ```properties
 ## 整合 Eureka
@@ -580,7 +560,7 @@ spring.cloud.config.discovery.enabled=true
 spring.cloud.config.discovery.serviceId = spring-cloud-config-server
 ```
 
-#### 测试链路
+##### 3）测试链路
 
 http://localhost:7070/person-client/person/find/all
 
@@ -648,9 +628,9 @@ def.acme.com -> def
        }
    ```
 
-   ​
+   
 
-   ​
+   
 
 5. ZuulServlet已经管理了RequestContext的生命周期了，为什么ContextLifecycleFilter还要在做一遍？
 

@@ -19,7 +19,7 @@
  **git实现：**
  - **服务端配置**
      ​	spring.cloud.config.server.git.uri
-       ​	spring.cloud.config.server.git.*
+       ​  spring.cloud.config.server.git.*
 
 - **客户端**
   ​	spring.cloud.config.uri

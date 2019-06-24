@@ -515,7 +515,7 @@ feign.compression.request.min-request-size=2048
 ​	当然光配置这个日志功能还不能生效，默认客户端配置的还是NONE
 
 ```properties
-logger.level.com.vison.feign.HelloService=DEBUG
+logging.level.com.vison.feign.HelloService=DEBUG
 ```
 
 ## 步骤二：应用添加Bean
