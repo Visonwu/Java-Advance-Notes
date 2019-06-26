@@ -1,3 +1,7 @@
+		**spring-cloud-config**是Spring-Cloud团队全新的一个项目，用来对分布式系统的基础设施和微服务提供集中化配置处理。
+
+例子：可以参考zuul整合案例
+
 # 1.Spring-Cloud配置相关信息
 
 ## 1.1 Environment仓储
@@ -31,7 +35,7 @@
 
 # 2. Spring-Cloud服务端配置
 
-
+​		这里从git获取配置信息，其实是通过**git clone**获取配置中心的配置，有时候即使git服务器挂了，**config-server**也可以从自己本地返回配置信息
 
 前提：新建springcloud-config-server项目，引入`config-server，actuator和web`
 
@@ -63,10 +67,16 @@ spring.cloud.config.server.git.uri =file:///D:/workspace/spring-cloud/config
 spring.application.name = config-server
 sever-port=9090
 spring.cloud.config.server.git.uri =file:///D:/workspace/spring-cloud/config
+#配置仓库的相对路径搜索地址，可以配置多个
+#spring.cloud.config.server.git.search-paths=file1
+
 ###全局关闭Actuator安全
 # management.security.enable=false
 ## 细粒度开放 Actuator Endpoints ;sensitive 关注铭感性，安全
 endpoints.env.sensitive = false
+
+spring.cloud.config.server.git.username=username
+spring.cloud.config.server.git.password=password
 ```
 
 
@@ -83,7 +93,7 @@ endpoints.env.sensitive = false
 
 前提：新建springcloud-config-client项目，引入`config-client，actuator和web`
 
-**步骤一：**在Configuration Class(可以在主程序上run方法类)上标记`@EnableConfigClient`
+**步骤一：**在Configuration Class(可以在主程序上run方法类)上标记`@EnableConfigClient`，新版本直接导入依赖即可，不用注解了
 
 **步骤二：**application.properties中配置
 
@@ -144,7 +154,9 @@ endpoints.refresh.sensitive = false
 public class EndPointController {
 
     @Value("${my.name}")   //上面的vison-prod.properties中配置的是  my.name=123
-    private String myName;
+    private String myName; 
+    @Autowired
+    private Environment environment; //也是可以根据这个获取配置属性
 
     @RequestMapping("/my-name")
     public String getName(){
