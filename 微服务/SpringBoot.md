@@ -6,7 +6,7 @@
 - 4、@ComponentScan用来扫描你添加了注解的包
 - 5、@PropertySource可以指定读取的配置文件，通过@Value注解获取值
 - 6、@ImportResource(value={"xxx.xml"}):表示的意思是导入外部的xml配置文件
-- 7、@Import 引入另外一个Configuration配置文件，可以获取其他配置文件获取的bean
+- 7、@Import 引入另外一个`Configuration`，配置文件，可以获取其他配置文件获取的bean。以及`ImportBeanDefinitionRegistrar`,`ImportSelector`这两个接口的实现类
 - 8、@ConfigurationProperties和EnableConfigurationProperties，前者表示将properties的文件自动组装到Java 对象的属性上，后者表示将@ConfigurationProperties组装好的对象作为bean注入到IOC容器中(这样前者就不用加@Component)
 
 **例子：**
