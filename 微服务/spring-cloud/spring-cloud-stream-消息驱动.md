@@ -733,6 +733,8 @@ public Message<?> preSend(Message<?> messageArg, MessageChannel channel,
 
 ### 4.8 消息类型content-type
 
+![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g4idc39y5oj20ve08omy2.jpg)
+
 ```properties
 #spring.cloud.stream.bindings.{channelName}.content-type={value}
 spring.cloud.stream.bindings.input.content-type=application/json
