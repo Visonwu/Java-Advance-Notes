@@ -766,6 +766,8 @@ spring.cloud.stream.bindings.input.content-type=application/json
 
 ### 4.9 Binder绑定器
 
+参考：<https://cloud.spring.io/spring-cloud-static/Greenwich.SR2/single/spring-cloud.html#spring-cloud-stream-overview-binders>
+
 ​	我们的RabbitMQ和Kafka分别有实现的Binder接口。`Binder`接口是spring-cloud-stream提供的SPI,我们自己要可以实现自己的其他消息实现。
 
 **一个典型Binder绑定器需要包含下面几个内容:**
@@ -782,13 +784,61 @@ spring.cloud.stream.bindings.input.content-type=application/json
     
     ```
 
-    
 
 
 
+#### 1） 多绑定器使用
+
+​		我们同时导入了多个消息中间件使用，比如kafka，rabbitMq，我们需要对不同的消息中间件做定制化使用.
+
+**1.1).设置默认绑定器，不同的消息中间件**
+
+```properties
+#当然这里的rabbit,kafka分别是META-INF/spring.binders中的标识符
+spring.cloud.stream.default-binder=rabbit
+##设置input通道的绑定器为kafka
+spring.cloud.stream.bindings.input.binder=kafka
+
+```
+
+**1.2).同一个消息中间件，多个实例**
+
+- 1.当显示的配置会自动禁用默认的绑定器配置
+- 2.spring.cloud.stream.binders.<configurationName>自定义配置绑定器设置
+- 3.spring.cloud.stream.binders.<configurationName>.type=rabbit #配置当前绑定器的类型，这个来自META-INF/spring.binders文件
+- 4.spring.cloud.stream.binders.rabbit1.environment 用来设置绑定器的相关属性
+- 5.spring.cloud.stream.binders.rabbit1.inherit-environment 当前绑定器是否继承当前应用的环境配置，默认true
+- 6.spring.cloud.stream.binders.rabbit1.default-candidate=用来设置当前绑定器配置为默认绑定器的候选项，默认为true,如果需要不影响默认配置，可以设置为false
+
+```properties
+#当我们连接两个不同的消息中间件实例，input通道使用的rabbit1，output通道使用的是rabbit2
+spring.cloud.stream.bindings.input.binder=rabbit1
+spring.cloud.stream.bindings.output.binder=rabbit2
+
+#rabbitmq 实例1
+spring.cloud.stream.binders.rabbit1.type=rabbit
+spring.cloud.stream.binders.rabbit1.environment.spring.rabbitmq.host=192.168.124.149
+spring.cloud.stream.binders.rabbit1.environment.spring.rabbitmq.port=5672
+spring.cloud.stream.binders.rabbit1.environment.spring.rabbitmq.username=admin
+spring.cloud.stream.binders.rabbit1.environment.spring.rabbitmq.password=admin
+spring.cloud.stream.binders.rabbit1.default-candidate=
+spring.cloud.stream.binders.rabbit1.inherit-environment=true
+
+#rabbitmq 实例2
+spring.cloud.stream.binders.rabbit2.type=rabbit
+spring.cloud.stream.binders.rabbit2.environment.spring.rabbitmq.host=192.168.124.150
+spring.cloud.stream.binders.rabbit2.environment.spring.rabbitmq.port=5672
+spring.cloud.stream.binders.rabbit2.environment.spring.rabbitmq.username=admin
+spring.cloud.stream.binders.rabbit2.environment.spring.rabbitmq.password=admin
+```
 
 
 
+### 4.10 RabbitMQ和Kafka各自对应的特殊配置
+
+**rabbimq：**参考官网   <https://cloud.spring.io/spring-cloud-static/spring-cloud-stream-binder-rabbit/2.2.0.RELEASE/spring-cloud-stream-binder-rabbit.html>
+
+**Kafka**：参考官网<https://cloud.spring.io/spring-cloud-static/spring-cloud-stream/2.2.0.RELEASE/home.html>
 
 ## 5.疑难杂症
 
