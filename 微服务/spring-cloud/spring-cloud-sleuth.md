@@ -1,54 +1,123 @@
 Sleuth产生：参考基础：[Google Dapper](dapper.pdf)
 
-# 1.Spring Cloud Sleuth 整合
 
-​	sleuth用来追踪链路的调用情况
 
-## 1.1 Maven 依赖
+​		在大规模的微服务的使用，各个微服务的调用之间也会越来越复杂，几乎在每一个请求都会有复杂的分布式调用链路，所以为了跟踪请求链路及其调用情况，我们可以用Sleuth来做到这一点。
+
+spring-cloud微服务分布：
+
+![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g2vb8l8ac9j20zu0jedi0.jpg)
+
+# 1.简单使用
+
+​	基本上只需要引入依赖就可以了，不过只能看到日志有一定的变化。
+
+HTTP 收集（HTTP 调用），这里只是简单HTTPriz
+
+**1) 借用前面的项目**
+
+- 一个Eureka-Server注册中心，
+
+- 两个项目（项目一consumer-demo调用 项目二的service-provider），并且这两个项目都注册到Eureka-server上
+
+**2）在两个调用的链路中添加日志打印，简单的打印即可**
+**3）分别在后面两个项目添加依赖**
 
 ```xml
 <dependency>
-	<groupId>org.springframework.cloud</groupId>
-	<artifactId>spring-cloud-starter-sleuth</artifactId>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-sleuth</artifactId>
 </dependency>
 ```
 
-## 1.2 sleuth原理
 
-  **1）日志发生的变化**
 
-​	当应用ClassPath 下存在`org.springframework.cloud:spring-cloud-starter-sleuth`时候，日志会发生调整。
+**4）启动项目，然后发起调用，这里会发现控制台多了如下信息**
 
-2）**整体流程**
+```xml
+INFO [feign-consumer,ce638951bffb6c99,ce638951bffb6c99,false] 。。。。
 
-`spring-cloud-starter-sleuth` 会自动装配一个名为`TraceFilter` 组件（在 Spring WebMVC `DispatcherServlet `之前），它会增加一些 slf4j MDC
-
-> [MDC](https://www.slf4j.org/manual.html#mdc) : Mapped Diagnostic Context
-
-`org.springframework.cloud:spring-cloud-starter-sleuth` 会调整当前日志系统（slf4j）的 MDC `Slf4jSpanLogger#logContinuedSpan(Span)`:
-
-```java
-	@Override
-	public void logContinuedSpan(Span span) {
-		MDC.put(Span.SPAN_ID_NAME, Span.idToHex(span.getSpanId()));
-		MDC.put(Span.TRACE_ID_NAME, span.traceIdString());
-		MDC.put(Span.SPAN_EXPORT_NAME, String.valueOf(span.isExportable()));
-		setParentIdIfPresent(span);
-		log("Continued span: {}", span);
-	}
+INFO [hello-service-provider,ce638951bffb6c99,1b79415e848fdcaa,false] 。。。。
 ```
 
 
 
-注意这里的SPAN-ID和TRANCE-ID不同处；
+这里会发现相比没有添加sleuth依赖多了一些日志[service- provider,f34343dkdk3434343ss,a6344343dejdkfjk,false]
 
-- TRANCE-ID:一次请求唯一
+- 第一个值：service-provider表示项目名，即spring-application-name的名字
+- 第二个值：f34343dkdk3434343ss表示Spring-cloud-sleuth生成的唯一ID,成为TraceID,用来标识一条请求链路，一个请求只有会一个TraceID和多个SpanID
+- 第三个值：a6344343dejdkfjk表示Spring-cloud-sleuth生成的另外一个ID，称为SpanID,表示一个基本的工作单元，如果请求的链路的第一步是当期项目，那么这里为TraceID值
+- 第四个值：false，表示是否要将该信息输出到Zipkin等服务中来收集和展示。
 
-- SPAN-ID:调用到不同的服务会有不同，建议参考官网看具体信息
 
-# 2.Spring Cloud整合 [Zipkin](zipkin.io) 
 
-**2.1 创建 Spring Cloud Zipkin 服务器**
+# 2.Sleuth原理
+
+## 2.1 抽样收集
+
+​	我们在分析和跟踪日志的时候会产生大量的日志，如果日志过多那么对整个分布式系统也是有一定的影响的，同时保存大量的日志也会存在很大的存储开销。所以Sleuth采用了抽样收集的方式.
+
+Sleuth提供了如下Sampler接口：
+
+```java
+public abstract class Sampler {
+
+  public static final Sampler ALWAYS_SAMPLE = new Sampler() {
+  };
+
+  public static final Sampler NEVER_SAMPLE = new Sampler() {
+  };
+  //这个用来返回是否要收集日志，但是即使是false也是表示不仅仅代表该跟踪信息不被输出到远程分析系统，比如zipkin
+  public abstract boolean isSampled(long traceId);
+
+  public static Sampler create(float rate) {
+    return CountingSampler.create(rate);
+  }
+}
+
+```
+
+**我们可以自定义抽样比率，通过appllication.xml配置**
+
+```java
+spring.sleuth.sampler.rate=1
+```
+
+**通过添加bean**
+
+```java
+//总是全部选择
+@Bean
+public Sampler defaultSample(){
+    return Sampler.ALWAYS_SAMPLE;
+}
+```
+
+
+
+
+
+
+
+# 2.Spring Cloud Sleuth 整合
+
+​	通过sleuth给每一个分布式系统增加了跟踪日志，但是每一个服务分别查看日志还是比较麻烦，所以我们可以通过其他整合日志系统，可以更加快捷的查看到日志信息情况。
+
+## 2.1 Spring Cloud Sleuth整合Logstash
+
+​	Logstash是ELK中的日志收集系统，我们可以参考官网做整合：<https://cloud.spring.io/spring-cloud-static/spring-cloud-sleuth/2.1.2.RELEASE/single/spring-cloud-sleuth.html>
+
+
+
+但是通过ELK做出来的信息收集不能对调用时间的监控。
+
+## 2.2 Spring Cloud Sleuth整合 [Zipkin](zipkin.io) 
+
+### 2.2.1 Http收集
+
+​	使用简单的Http，收集zipkin日志，并展示在页面上
+
+#### 1） 创建 Spring Cloud Zipkin 服务器
 
 **1）增加 Maven 依赖**
 
@@ -67,18 +136,19 @@ Sleuth产生：参考基础：[Google Dapper](dapper.pdf)
 </dependency>
 ```
 
-**2）激活 Zipkin 服务器**
+**2）配置服务**
+
+```properties
+spring.application.name=zipkin-demo-server
+server.port=9411
+```
+
+**3）激活 Zipkin 服务器**
 
 ```java
-package com.gupao.springcloudzipkinserverdemo;
-
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import zipkin.server.EnableZipkinServer;
-
 @SpringBootApplication
 @EnableZipkinServer
-public class SpringCloudZipkinServerDemoApplication {
+public class ZipkinServerApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(SpringCloudZipkinServerDemoApplication.class, args);
@@ -86,170 +156,36 @@ public class SpringCloudZipkinServerDemoApplication {
 }
 ```
 
+#### 2） 原来的两个调用项目zipkin客户端配置
 
+​			项目一 **consumer-demo**调用 项目二的**service-provider**
 
-## 2.1 HTTP 收集（HTTP 调用）
-
-### 1. zipkin 启动
-
-**1）增加 Maven 依赖**
-
-```xml
-<!-- Zipkin 客户端依赖-->
-<dependency>
-	<groupId>org.springframework.cloud</groupId>
-	<artifactId>spring-cloud-starter-zipkin</artifactId>
-</dependency>
-```
-
-**2）配置application.properties**
-
-```properties
-## Spring Cloud Zipkin 服务器应用名称
-spring.application.name = spring-cloud-zipkin-server
-
-## 服务端口
-server.port = 23456
-```
-
-
-
-### 2. Spring Cloud 服务大整合
-
-![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g2vb8l8ac9j20zu0jedi0.jpg)
-
-> 端口信息
->
-> > [spring-cloud-zuul](spring-cloud-zuul-demo) 端口：**7070**
-> >
-> > [person-client](spring-cloud-feign-demo/person-client) 端口：**8080**
-> >
-> > [person-service](spring-cloud-feign-demo/person-service-provider) 端口：**9090**
-> >
-> > [Eureka Server](spring-cloud-eureka-server-demo) 端口：**12345**
-> >
-> > [Zipkin Server](spring-cloud-zipkin-server-demo) 端口：**23456**
-
-#### 1）启动服务
-
-1. **Zipkin Server** 
-2. **Eureka Server**
-3. **spring-cloud-config-server**
-4. **person-service** 
-5. **person-client**
-6. **spring-cloud-zuul**
-
-#### 2） 把服务上报到zipkin
-
-`spring-cloud-zuul` 上报到 Zipkin 服务器
-
-`person-client` 上报到 Zipkin 服务器
-
-`person-service` 上报到 Zipkin 服务器
-
-**分别增加依赖**
-
-```xml
-<!-- Zipkin 客户端依赖-->
-<dependency>
-	<groupId>org.springframework.cloud</groupId>
-	<artifactId>spring-cloud-starter-zipkin</artifactId>
-</dependency>
-```
-
-**增加zipkin的上报路径**
-
-```properties
-## Zipkin 服务器配置
-zipkin.server.host = localhost
-zipkin.server.port = 23456
-
-## 增加 ZipKin 服务器地址
-spring.zipkin.base-url =  http://${zipkin.server.host}:${zipkin.server.port}/
-```
-
-
-
-### 3)增加项目sleuth作为客户端
-
-**增加 Eureka 客户端依赖**
+**增加依赖**
 
 ```xml
 <dependency>
-	<groupId>org.springframework.cloud</groupId>
-	<artifactId>spring-cloud-starter-eureka</artifactId>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-sleuth-zipkin</artifactId>
 </dependency>
 ```
 
-**激活 Eureka 客户端**
-
-```java
-package com.gupao.springcloudsleuthdemo;
-
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
-
-@SpringBootApplication
-@EnableDiscoveryClient
-public class SpringCloudSleuthDemoApplication {
-
-	public static void main(String[] args) {
-		SpringApplication.run(SpringCloudSleuthDemoApplication.class, args);
-	}
-}
-```
-
-**调整配置**
+**分别添加zipkin-server服务器的url调用地址**
 
 ```properties
-spring.application.name = spring-cloud-sleuth
-
-## 服务端口
-server.port = 6060
-
-## Zipkin 服务器配置
-zipkin.server.host = localhost
-zipkin.server.port = 23456
-
-## 增加 ZipKin 服务器地址
-spring.zipkin.base-url = \
-  http://${zipkin.server.host}:${zipkin.server.port}/
-
-## Eureka Server 服务 URL,用于客户端注册
-eureka.client.serviceUrl.defaultZone=\
-  http://localhost:12345/eureka
+spring.zipkin.base-url=http://localhost:9411/
 ```
 
-**代码连接** `spring-cloud-zuul`
+#### 3） 调用链路测试
 
-```java
-    /**
-     * 完整的调用链路：
-     * spring-cloud-sleuth
-     * -> spring-cloud-zuul
-     * -> person-client
-     * -> person-service
-     *
-     * @return
-     */
-    @GetMapping("/to/zuul/person-client/person/find/all")
-    public Object toZuul() {
-        logger.info("spring-cloud-sleuth#toZuul()");
-        // spring-cloud-zuul :  7070
-        String url = "http://spring-cloud-zuul/person-client/person/find/all";
-        return restTemplate.getForObject(
-                url, Object.class);
-    }
-```
+​	调用完了，通过zipkin服务器查看信息`http://localhost:9411/zipkin`可以查看到如下信息：
 
+![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g4lbrvu0f2j20v90gx74x.jpg)
 
+### 2.2.2 消息中间件收集
 
-## 2.2 Spring Cloud Stream 收集
+​		调整`spring-cloud-zipkin-server` 通过 Stream 来收集
 
-调整`spring-cloud-zipkin-server` 通过 Stream 来收集
-
-#### 1. 调整zipkin 的收集方式
+#### 1. 调整zipkin 服务器配置
 
  **Maven 依赖**
 
@@ -259,10 +195,10 @@ eureka.client.serviceUrl.defaultZone=\
 	<groupId>org.springframework.cloud</groupId>
 	<artifactId>spring-cloud-sleuth-zipkin-stream</artifactId>
 </dependency>
-<!-- 使用 Kafka 作为 Stream 服务器 -->
+<!-- 使用 rabbit 作为 Stream 服务器 -->
 <dependency>
 	<groupId>org.springframework.cloud</groupId>
-	<artifactId>spring-cloud-stream-binder-kafka</artifactId>
+	<artifactId>spring-cloud-stream-binder-rabbit</artifactId>
 </dependency>
 ```
 
@@ -287,13 +223,9 @@ public class SpringCloudZipkinServerDemoApplication {
 }
 ```
 
-**启动 Zookeeper**
 
-**启动 Kafka 服务器**
 
-**启动`spring-cloud-zipkin-server**`
-
-#### 2）调整 `spring-cloud-zuul`，及相关需要需要上报的服务。
+#### 2）调整相关需要需要上报的服务
 
 **增加依赖**
 
@@ -307,63 +239,33 @@ public class SpringCloudZipkinServerDemoApplication {
 	<groupId>org.springframework.cloud</groupId>
 	<artifactId>spring-cloud-starter-sleuth</artifactId>
 </dependency>
-<!-- Kafka Binder -->
+<!-- rabbitmq Binder -->
 <dependency>
 	<groupId>org.springframework.cloud</groupId>
-	<artifactId>spring-cloud-stream-binder-kafka</artifactId>
+	<artifactId>spring-cloud-stream-binder-rabbit</artifactId>
 </dependency>
 ```
 
-> 含有http上报的URL配置都注释掉，
->
+**含有http上报的URL配置都注释掉，并增加消息的相关配置**
+
 > ```properties
 > ### 增加 ZipKin 服务器地址
 > #spring.zipkin.base-url = \
 > #  http://${zipkin.server.host}:${zipkin.server.port}/
+> 
+> #并增加相应消息的配置，这里rabbitmq
+> spring.rabbitmq.host=192.168.124.150
+> spring.rabbitmq.port=5672
+> spring.rabbitmq.username=admin
+> spring.rabbitmq.password=admin
+> spring.rabbitmq.virtual-host=admin_vhost
 > ```
 
 
 
-# 3.疑难
+### 2.2.3 zipkin原理
 
-- 只有第一个被访问的应用的pom引用了spring-cloud-starter-sleuth包么？后面的应用spanid是怎么生成的？上报是汇集到一起上报么?
-
-  答：每个应用都需要依赖`spring-cloud-starter-sleuth`。SpanId 是当前应用生成的，Trace ID 是由上个应用传递过来（Spring Cloud 通过请求头Headers）
-
-- sleuth配合zipkin主要解决的是分布式系统下的请求的链路跟踪，这么理解没错吧？
-
-  答：可以这么理解，问题排查、性能、调用链路跟踪
-
-- sleuth 与 eureka 没关联吧？
-
-  答：没有直接关系，Sleuth 可以利用 Eureka 做服务发现
-
-- 生产上类sleuth的log日志应该看哪些资料？opentsdb，也有调用链路等相关信息么？
-
-  答：OpenTsdb 主要是存储 JSON 格式，存放Metrics 信息
-
-- 排查问题是根据traceid来查找有所日志吧
-
-  答：可以通过TraceId 查找调用链路，通过 Span Id 定位在什么环节
-
-- 整合显示是sleuth做的，zipkin用来收集信息对吧？
-
-  答：zipkin 是一种用整合方式
-
-- 两个系统对接需要通过json进行数据传输，但是两个系统之间的json数据格式是不同的，有没有好一点的开源项目可以解决这个问题，类似xslt转换xml的方式。
-
-  答：A -> B, data1 ,  B -> A data2， 接受方使用Map。JSON Path
-
-  ```json
-  {"id":1,
-  	abc:{
-  		"name":"xiaomage",
-        	 "age":32
-  	}
-  }
-  ```
-
-
+参考：<https://www.cnblogs.com/duanxz/p/7552857.html>
 
   ​
 
