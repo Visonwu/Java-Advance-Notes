@@ -1,7 +1,7 @@
 # 1.配置文件的加载顺序
 
 ```bash
-服务器执行命令：./mysql --help | grep my.cnf
+服务器执行命令：mysql --help | grep my.cnf
 
 /etc/my.cnf  /etc/mysql/my.cnf  /usr/etc/my.cnf    ~/.my.cnf
 

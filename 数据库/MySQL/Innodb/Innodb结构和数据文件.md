@@ -389,7 +389,7 @@ mysql> show variables like 'innodb_file_per_table';
 +-----------------------+-------+
 ```
 
-注意点**：当前的idb文件只是记录当前表的数据，索引，插入缓冲信息**，其他信息还是存储在默认的表空间中。
+注意点**：当前的idb文件只是记录当前表的数据，索引，插入缓冲信息**，其他信息还是存储在默认的表空间中。比如Undo,二次写缓冲，系统事务信息等。
 
 ### 2）重做日志文件
 
@@ -418,7 +418,7 @@ mysql> show variables like 'innodb%log%';
 | innodb_log_buffer_size           | 16777216   |//重做日志的缓存大小，默认16M
 | innodb_log_file_size             | 50331648   |//重做日志文件大小，默认48M
 | innodb_log_files_in_group        | 2          |//日志文件组中重做日志文件的数量，默认2 如：ib_logfile1和ib_logfile2
-| innodb_log_group_home_dir        | ./         |//配置指定的目录存储
+| innodb_log_group_home_dir        | ./         |//配置组指定的目录存储
 +----------------------------------+------------+
 ```
 
@@ -454,3 +454,4 @@ mysql> show variables like 'innodb%log%';
 ​     二进制日志：只在事务提交完成后进行写入，**只写磁盘一次**，不论这时事务量多大。
 
 ​     重做日志：在事务进行中，就**不断有重做日志条**目(redo entry)写入重做日志文件。
+

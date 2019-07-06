@@ -1,13 +1,33 @@
+# SpringBoot
+
+​        对于 spring 框架，我们接触得比较多的应该是 spring mvc、和 spring。而 spring 的核心在于 IOC（控制反转）和 DI（依赖注入）。而这些框架在使用的过程中会需要配置大量的 xml，或者需要做很多繁琐的配置。springboot 框架是为了能够帮助使用 spring 框架的开发者快速高效的构建一个基于 spirng 框架以及 spring 生态体系的应用解决方案。它是对“约定优于配置”这个理念下的一个最佳实践。因此它是一个服务于框架的框架，服务的范围是简化配置文件。
+
+**约定优于配置的体现**
+
+1. maven 的目录结构
+    a) 默认有 resources 文件夹存放配置文件
+    b) 默认打包方式为 jar
+
+2. spring-boot-starter-web 中默认包含 spring mvc 相关依赖以及内置的 tomcat 容器，使得构建一个 web 应用更加简单
+3. 默认提供 application.properties/yml 文件
+4. 默认通过 spring.profiles.active 属性来决定运行环境时读取的配置文件
+5. EnableAutoConfiguration 默认对于依赖的 starter 进行自动装载
+
+
+
 # 1.Spring的Java配置方式
 
 - 1、@Configuration 作用于类上，相当于一个xml配置文件；
 - 2、@Bean 作用于方法上，相当于xml配置中的<bean/>；
 - 3、@Configuration表示当前类是一个配置文件
 - 4、@ComponentScan用来扫描你添加了注解的包
-- 5、@PropertySource可以指定读取的配置文件，通过@Value注解获取值
+- 5、@PropertySource可以指定读取外部的property配置文件，通过@Value注解获取值
 - 6、@ImportResource(value={"xxx.xml"}):表示的意思是导入外部的xml配置文件
 - 7、@Import 引入另外一个`Configuration`，配置文件，可以获取其他配置文件获取的bean。以及`ImportBeanDefinitionRegistrar`,`ImportSelector`这两个接口的实现类
-- 8、@ConfigurationProperties和EnableConfigurationProperties，前者表示将properties的文件自动组装到Java 对象的属性上，后者表示将@ConfigurationProperties组装好的对象作为bean注入到IOC容器中(这样前者就不用加@Component)
+  - `ImportSelector`,该接口通常被子类实现，用以判断被@Configuration注解修饰的类是否应该被导入；而判断的条件通常是基于注解的一些属性。动态注册bean
+    - 子类`DeferredImportSelector`在所有@Configuration处理完成后才被处理的。
+  - `ImportBeanDefinitionRegistrar`,提供注册器给 动态注册Bean
+- 8、@ConfigurationProperties和@EnableConfigurationProperties，前者表示将properties的文件自动组装到Java 对象的属性上，后者表示将@ConfigurationProperties组装好的对象作为bean注入到IOC容器中(这样前者就不用加@Component)
 
 **例子：**
 
@@ -72,7 +92,6 @@ public interface ServletContextListener extends EventListener {
     public default void contextDestroyed(ServletContextEvent sce) {
     }
 }
-   
 ```
 
 ## 3.2 Spring Web 自动装配
@@ -121,7 +140,7 @@ public class SpringServletContainerInitializer implements ServletContainerInitia
 
 
 
-## 3.2  实现Spring Web MVC自动装配
+## 3.3  实现Spring Web MVC自动装配
 
 根据上面的解释，需要自己实现接口 WebApplicationInitializer的抽象类
 
@@ -505,3 +524,4 @@ public String[] selectImports(AnnotationMetadata annotationMetadata) {
 8.查找当前context中是否有`commandLineRunner`和`ApplicationRunner`,如果有，遍历执行
 
 9.执行`SpringAppllicationRunlistener`的finnished方法
+
