@@ -333,7 +333,9 @@ META-INF/MANIFEST-MF:元信息，包含主类和启动类；
 
 
 
-# 5.SpringFactoriesLoader装载器
+# 5.SpringFactoriesLoader装载器-SPI
+
+## 5.1 装载器源码解析
 
 类似于JVM中的加载器，BootstrapCalssLoader、ExeClassLoader、AppClassLoader
 
@@ -348,17 +350,10 @@ public final class SpringFactoriesLoader {
 
 	//资源文件
 	public static final String FACTORIES_RESOURCE_LOCATION = "META-INF/spring.factories";
-
-
 	private static final Log logger = LogFactory.getLog(SpringFactoriesLoader.class);
-
 	private static final Map<ClassLoader, MultiValueMap<String, String>> cache = new ConcurrentReferenceHashMap<>();
-
-
 	private SpringFactoriesLoader() {
 	}
-
-
 	
 	public static <T> List<T> loadFactories(Class<T> factoryClass, @Nullable ClassLoader classLoader) {
 		Assert.notNull(factoryClass, "'factoryClass' must not be null");
@@ -411,12 +406,30 @@ public final class SpringFactoriesLoader {
 			return result;
 		}
 		catch (IOException ex) {
-			throw new IllegalArgumentException("Unable to load factories from location [" +
-					FACTORIES_RESOURCE_LOCATION + "]", ex);
+			throw new IllegalArgumentException("Unable to load factories from location [" +FACTORIES_RESOURCE_LOCATION + "]", ex);
 		}
 	}
 	...
 }
+```
+
+
+
+## 5.2 spring.factories 自定义配置化
+
+​	    springboot提供spi 容依赖自己 配置需要配置的初始化数据，例如自己在自己的项目中自己添加`META-INF/spring.factories`需要配置加载的配置内容。
+
+```properties
+#由于EnableAutoConfiguration 在spring-boot启动加载这个配置文件
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.vison.ws.MyAutoConfiguration
+```
+
+​      当然这里的`MyAutoConfiguration`也是一个`@Configuration`配置类，如果需要让当前的这个配置类在某种条件下动态加载，可以同样在`META-INF/spring-autoconfigure-metadata.properties`添加相应的条件配置。
+
+```properties
+#配置规则 <自定义配置类>.<条件>=<条件值> ；如：
+com.vison.ws.MyAutoConfiguration.ConditionalOnClass=javax.sql.DataSource
 ```
 
 
@@ -463,19 +476,51 @@ public class EffectiveJavaApplication {
 
 ```java
 //如下 ，这个类会使用SpringFactoriesLoader得到大量的配置类,这里会具使用
-//selectImports方法的调用会在AbstraceApplicationContext.refresh方法中
+//selectImports方法的调用会在AbstractApplicationContext.refresh方法中
+// annotationMetadata 是＠import所用在的注解相关数据．这里指定是@EnableAutoConfiguration，其实这里只有需要排除要实例化的类配置
 @Override
 public String[] selectImports(AnnotationMetadata annotationMetadata) {
     if (!isEnabled(annotationMetadata)) {
         return NO_IMPORTS;
     }
+    //这里加载 "META-INF/" + "spring-autoconfigure-metadata.properties"中的内容
     AutoConfigurationMetadata autoConfigurationMetadata = AutoConfigurationMetadataLoader
         .loadMetadata(this.beanClassLoader);
+    //如下:
     AutoConfigurationEntry autoConfigurationEntry = getAutoConfigurationEntry(
         autoConfigurationMetadata, annotationMetadata);
+    //这里返回的数组就是要实例化对应的bean
     return StringUtils.toStringArray(autoConfigurationEntry.getConfigurations());
 }
+
+
+protected AutoConfigurationEntry getAutoConfigurationEntry(AutoConfigurationMetadata autoConfigurationMetadata,AnnotationMetadata annotationMetadata) {
+    if (!isEnabled(annotationMetadata)) {
+        return EMPTY_ENTRY;
+    }
+    AnnotationAttributes attributes = getAttributes(annotationMetadata);
+    List<String> configurations = getCandidateConfigurations(annotationMetadata, attributes);
+    //移除重复的配置
+    configurations = removeDuplicates(configurations);
+    Set<String> exclusions = getExclusions(annotationMetadata, attributes);
+    checkExcludedClasses(configurations, exclusions);
+    //移除不需要实例的类
+    configurations.removeAll(exclusions);
+    configurations = filter(configurations, autoConfigurationMetadata);
+    fireAutoConfigurationImportEvents(configurations, exclusions);
+    return new AutoConfigurationEntry(configurations, exclusions);
+}
+
+//这里加载的就是根据从spring.factories文件中以`EnableAutoConfiguration.class`为key的值
+protected List<String> getCandidateConfigurations(AnnotationMetadata metadata, AnnotationAttributes attributes) {
+    List<String> configurations = SpringFactoriesLoader.loadFactoryNames(getSpringFactoriesLoaderFactoryClass(),getBeanClassLoader());
+    Assert.notEmpty(configurations, "No auto configuration classes found in META-INF/spring.factories. If you "
+                    + "are using a custom packaging, make sure that file is correct.");
+    return configurations;
+}
 ```
+
+
 
 
 
@@ -524,4 +569,6 @@ public String[] selectImports(AnnotationMetadata annotationMetadata) {
 8.查找当前context中是否有`commandLineRunner`和`ApplicationRunner`,如果有，遍历执行
 
 9.执行`SpringAppllicationRunlistener`的finnished方法
+
+
 

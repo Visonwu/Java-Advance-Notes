@@ -53,7 +53,7 @@ public class PersonController {
 
 ```
 
-```
+```xml
 <!--然而在依赖包中添加了如下--> 
  <dependency>
     <groupId>com.fasterxml.jackson.dataformat</groupId>
@@ -62,31 +62,31 @@ public class PersonController {
 </dependency>
 
 //返回值就变成了
-    <Person>
-        <id>1</id>
-        <name>vison</name>
-    </Person>
+<Person>
+    <id>1</id>
+    <name>vison</name>
+</Person>
     
 ```
 ```java
 //理由就是源码中的WebMvcConfiguration中的有判断下面的类是否存在,可以在在网站 https://search.maven.org 根据类查询maven仓库地址
 
-    static {
-		ClassLoader classLoader = WebMvcConfigurationSupport.class.getClassLoader();
-		romePresent = ClassUtils.isPresent("com.rometools.rome.feed.WireFeed", classLoader);
-		jaxb2Present = ClassUtils.isPresent("javax.xml.bind.Binder", classLoader);
-		jackson2Present = ClassUtils.isPresent("com.fasterxml.jackson.databind.ObjectMapper", classLoader) &&
-						ClassUtils.isPresent("com.fasterxml.jackson.core.JsonGenerator", classLoader);
-		
-		
-		jackson2XmlPresent = ClassUtils.isPresent("com.fasterxml.jackson.dataformat.xml.XmlMapper", classLoader);
-		
-		
-		jackson2SmilePresent = ClassUtils.isPresent("com.fasterxml.jackson.dataformat.smile.SmileFactory", classLoader);
-		jackson2CborPresent = ClassUtils.isPresent("com.fasterxml.jackson.dataformat.cbor.CBORFactory", classLoader);
-		gsonPresent = ClassUtils.isPresent("com.google.gson.Gson", classLoader);
-		jsonbPresent = ClassUtils.isPresent("javax.json.bind.Jsonb", classLoader);
-	}
+static {
+    ClassLoader classLoader = WebMvcConfigurationSupport.class.getClassLoader();
+    romePresent = ClassUtils.isPresent("com.rometools.rome.feed.WireFeed", classLoader);
+    jaxb2Present = ClassUtils.isPresent("javax.xml.bind.Binder", classLoader);
+    jackson2Present = ClassUtils.isPresent("com.fasterxml.jackson.databind.ObjectMapper", classLoader) &&
+        ClassUtils.isPresent("com.fasterxml.jackson.core.JsonGenerator", classLoader);
+
+
+    jackson2XmlPresent = ClassUtils.isPresent("com.fasterxml.jackson.dataformat.xml.XmlMapper", classLoader);
+
+
+    jackson2SmilePresent = ClassUtils.isPresent("com.fasterxml.jackson.dataformat.smile.SmileFactory", classLoader);
+    jackson2CborPresent = ClassUtils.isPresent("com.fasterxml.jackson.dataformat.cbor.CBORFactory", classLoader);
+    gsonPresent = ClassUtils.isPresent("com.google.gson.Gson", classLoader);
+    jsonbPresent = ClassUtils.isPresent("javax.json.bind.Jsonb", classLoader);
+}
     
 ```
 <br/>
@@ -519,7 +519,7 @@ public class PersonController {
 举例说明：
 
 ```java
-//切换HTTP 通讯实现，提升性能
+//切换HTTP 通讯实现，提升性能s
 RestTemplate restTemplate = new RestTemplate(new HttpComponentsClientHttpRequestFactory()); // HTTP Client
 ```
 
