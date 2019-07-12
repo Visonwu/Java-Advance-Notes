@@ -1,4 +1,4 @@
-@[toc]
+
 ### 1. 原生Zookeeper API使用
 ```java
 public class ZookeeperClient {
@@ -179,7 +179,7 @@ public class ZookeeperClient {
         Stat stat = new Stat();
         curatorFramework.getData().storingStatIn(stat).forPath("/vison/node1");
 
-        //更新节点信息
+        //更新节点信息，这里根据节点版本号更新数据，否则更新失败，类似乐观锁
         curatorFramework.setData().withVersion(stat.getVersion()).forPath("/vison/node1", "200".getBytes());
 
         //关闭
@@ -191,8 +191,8 @@ public class ZookeeperClient {
 #### 3.2 Curator的事件监听使用
 Curator提供了三种Watcher(Cache)来监听结点的变化：
 
-- Path Cache：监视一个路径下1）孩子结点的创建、2）删除，3）以及结点数据的更新。产生的事件会传递给注册的PathChildrenCacheListener。
-- Node Cache：监视一个结点的1）**创建、2）更新**，并将结点的数据缓存在本地。产生的事件会传递给注册的NodeCacheListener。
+- Path Cache：监视一个路径下**1）孩子结点的创建、2）删除，3）以及结点数据的更新**。产生的事件会传递给注册的PathChildrenCacheListener。
+- Node Cache：监视一个结点的**1）创建、2）更新**，并将结点的数据缓存在本地。产生的事件会传递给注册的NodeCacheListener。
 - Tree Cache：Path Cache和Node Cache的“合体”，监视路径下的创建、更新、删除事件，并缓存路径下所有孩子结点的数据。
 ```java
 /**
@@ -204,12 +204,21 @@ public static void addWatchWithNodeCache(CuratorFramework curatorFramework,Strin
     final NodeCache nodeCache = new NodeCache(curatorFramework,path,false);
     NodeCacheListener nodeCacheListener = new NodeCacheListener() {
         public void nodeChanged() throws Exception {
+            
+            //1.监听当前节点被删除了
+            ChildData currentData1 = nodeCache.getCurrentData();
+            if (currentData1 ==null){
+                System.out.println("节点被删除了:");
+                return;
+            }
+            
+            //2.监听当前节点数据变化
             System.out.println("data changed :"+ nodeCache.getCurrentData().getPath());
         }
     };
 
     nodeCache.getListenable().addListener(nodeCacheListener);
-    nodeCache.start();
+    nodeCache.start(false);
 }
 
 /**
@@ -230,7 +239,7 @@ public static void addWatchWithPathChildrenCache(CuratorFramework curatorFramewo
 }
 
 /**
- * 综合监听事件
+ * 综合监听事件，包含当前节点和子节点的变化
  * @param curatorFramework
  * @param path
  * @throws Exception
