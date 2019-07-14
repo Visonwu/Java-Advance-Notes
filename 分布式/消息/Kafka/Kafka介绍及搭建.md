@@ -75,3 +75,4 @@ bin/kafka-server-start.sh -daemon config/server.properties &
 **安装问题**
 
 jdk版本尽量高一点，否则kafka启动会报错
+

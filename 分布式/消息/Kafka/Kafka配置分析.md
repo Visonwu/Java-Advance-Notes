@@ -33,14 +33,13 @@
 
 ## 2.1 group.id
 
-​		consumer group是kafka提供的可扩展且具有容错性的消费者机制。既然是一个组，那么组内必然可以有多个消费者或消费者实例(consumer instance)，它们共享一个公共的ID，即group ID。组内的所有消费者协调在一起来消费订阅主题(subscribed topics)的所有分区(partition)。当然，每个分区只能由同一个消费组内的一个consumer来消费.如下图所示，分别有三个消费者，属于两个不同的group，那么对于firstTopic这个topic来说，这两个组的消费者都能同时消费这个topic中的消息，对于此事的架构来说，这个firstTopic就类似于ActiveMQ中的topic概念。如右图所示，如果3个消费者都属于同一个group，那么此事firstTopic就是一个Queue的概念
+​		consumer group是kafka提供的可扩展且具有容错性的消费者机制。既然是一个组，那么组内必然可以有多个消费者或消费者实例(consumer instance)，它们共享一个公共的ID，即group ID。组内的所有消费者协调在一起来消费订阅主题(subscribed topics)的所有分区(partition)。当然，每个分区只能由同一个消费组内的一个consumer来消费.如下图所示，分别有三个消费者，属于两个不同的group，那么对于firstTopic这个topic来说，这两个组的消费者都能同时消费这个topic中的消息，对于此事的架构来说，这个firstTopic就类似于ActiveMQ中的topic概念。如图所示，如果3个消费者都属于同一个group，那么此时firstTopic就是一个Queue的概念
 
-
+![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g4xew3abwyj20le09c405.jpg)
 
 ## 2.2 enable.auto.commit
 
-​		消费者消费消息以后自动提交，只有当消息提交以后，该消息才不会被再次接收到，还可以配合auto.commit.interval.ms控制自动提交的频率。
-当然，我们也可以通过consumer.commitSync()的方式实现手动提交
+​		消费者消费消息以后自动提交，只有当消息提交以后，该消息才不会被再次接收到，还可以配合auto.commit.interval.ms控制自动提交的频率。当然，我们也可以通过consumer.commitSync()的方式实现手动提交
 
 
 
@@ -56,4 +55,4 @@
 
 ## 2.3 max.poll.records
 
-​		此设置限制每次调用poll返回的消息数，这样可以更容易的预测每次poll间隔要处理的最大值。通过调整此值，可以减少poll间隔
+​		此设置限制每次调用poll返回的消息数，这样可以更容易的预测每次poll间隔要处理的最大值。通过调整此值，可以减少poll间隔。

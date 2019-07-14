@@ -1,6 +1,7 @@
+# 1.分布式锁
 
-### 1.分布式锁
-#### 1.1 通过原生zookeeper封装实现
+## 1.1 通过原生zookeeper封装实现
+
 ```java
 package com.vison.ws.zookeeper;
 
@@ -151,7 +152,7 @@ public class TestDistributedLock{
 }
 ```
 
-#### 2.2 使用Curator recipe 实现
+## 2.2 使用Curator recipe 实现
 
 &emsp;&emsp;建议参考官网：http://curator.apache.org/    这里还有很多高级应用场景的封装实现
 
@@ -182,10 +183,15 @@ public class CuratorLocksTest {
                         countDownLatch.await();
                         interProcessMutex.acquire();
                         this.doSomething(); //做一些操作
-                        interProcessMutex.release();//释放锁
                         System.out.println(Thread.currentThread().getName()+"-->释放锁");
                     }catch ( Exception e){
                         e.printStackTrace();
+                    }finally {
+                        try {
+                            interProcessMutex.release();//释放锁
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
                 }
                 private void doSomething() {
@@ -199,3 +205,89 @@ public class CuratorLocksTest {
 }
 
 ```
+
+
+
+# 2.Mater选举
+
+## 2.1 Curator实现Master选举
+
+​		原理还是利用curator的互斥锁来实现的，获取到锁的就是master，否则就是follower节点。
+
+```java
+package com.vison.leader;
+
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.recipes.leader.LeaderSelector;
+import org.apache.curator.framework.recipes.leader.LeaderSelectorListenerAdapter;
+import org.apache.curator.retry.ExponentialBackoffRetry;
+
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+
+/**
+ * @author vison
+ * @date 2019/7/14 19:55
+ * @Version 1.0
+ */
+public class LeaderSelectorClient extends LeaderSelectorListenerAdapter implements Closeable {
+
+    private String name;
+    private LeaderSelector leaderSelector;
+    private CountDownLatch countDownLatch = new CountDownLatch(1);
+
+    public LeaderSelectorClient(String name) {
+        this.name = name;
+        //leaderSelector.autoRequeue();//自动重复参与选举
+    }
+
+    @Override
+    public void takeLeadership(CuratorFramework client) throws Exception {
+        //1.如果进入当前方法表示获得锁，获得锁后会回调当前这个方法
+        //2.这个方法执行结束后，表示释放锁
+
+        //3.TODO 这里逻辑处理
+        System.out.println("当前服务器是master了："+name);
+        //4.阻塞
+        countDownLatch.await();//这个一定不能去掉；阻塞当前的进程防止leader丢失
+    }
+
+    public void start(){
+        leaderSelector.start();
+    }
+	
+    //java自带的close接口
+    @Override
+    public void close() throws IOException {
+        leaderSelector.close();
+    }
+
+    /**
+     * 设置leaderSelector
+     *
+     * @param leaderSelector leaderSelector
+     */
+    public void setLeaderSelector(LeaderSelector leaderSelector) {
+        this.leaderSelector = leaderSelector;
+    }
+
+    public static void main(String[] args) throws IOException {
+        CuratorFramework framework = CuratorFrameworkFactory.builder()
+                .connectString("192.168.124.159:2181")
+                .sessionTimeoutMs(5000)
+                .retryPolicy(new ExponentialBackoffRetry(1000, 3))
+                .build();
+        framework.start();
+        LeaderSelectorClient clientA = new LeaderSelectorClient("ClientA");
+        LeaderSelector leaderSelector = new LeaderSelector(framework,"/leader",clientA);
+        clientA.setLeaderSelector(leaderSelector);
+        clientA.start();
+        System.in.read();
+
+    }
+}
+
+```
+

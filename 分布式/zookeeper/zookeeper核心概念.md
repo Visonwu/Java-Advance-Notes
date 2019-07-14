@@ -123,3 +123,31 @@ Zookeeper采用ACL(access Control Lists) 策略来进行权限控制，类似于
 参考：
 https://blog.csdn.net/piaoslowly/article/details/81625306
 https://blog.csdn.net/weijifeng_/article/details/79775738#2
+
+
+
+### 3.Zookeeper的一致性
+
+- zookeeper属于最终一致性（弱一致性）
+- zookeeper属于顺序一致性
+
+
+
+​	通过zookeeper的消息广播协议可以得知，在大部分follower能够完成提交时就提交成功了，所以对于不同客户端访问不同的zookeeper的节点数据不同，但是最终zookeeper的节点数据是相同的，所以属于弱一致性。
+
+#### 3.1 sync
+
+​	当leader、follower节点的数据不一致，某些follower节点数据还没有提交，此时可以通过sync方法让leader节点让每一个follower都数据执行事务提交，然当前数据获取到的数据是最新的。
+
+```java
+framework.sync().forPath("/foo");
+```
+
+
+
+#### 3.2 单个client 获得同一视图
+
+​		某一个客户端连接到zookeeper节点后；获取到第一次数据data1，如果再一次去获取数据也是获取到新的，不会获取到老的数据，（按照follower节点可能延迟，可能获取到旧的数据，不过zookeeper根据zxid来判定是否获取到旧的数据，如果获取到旧数据会抛出异常，有点类似乐观锁了）
+
+
+
