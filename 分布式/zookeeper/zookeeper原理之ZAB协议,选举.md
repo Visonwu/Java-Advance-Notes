@@ -96,8 +96,9 @@ ZAB协议包含两种基本模式：**崩溃恢复和消息广播**
 - (4) 统计投票。与启动时过程相同。
 - (5) 改变服务器的状态。与启动时过程相同
 
-
 ## 3. Leader选举源码
+
+![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g55ytmhbdfj213e0owwgk.jpg)
 
 ### 3.1 FastLeaderElection 选举过程
 
@@ -888,3 +889,9 @@ public void toSend(Long sid, ByteBuffer b) {
     }
 }
 ```
+
+
+
+## 4.Watcher源码
+
+![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g576xhq9m6j20uh0go3zl.jpg)
