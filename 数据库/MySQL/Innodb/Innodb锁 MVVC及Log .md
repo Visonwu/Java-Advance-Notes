@@ -97,7 +97,8 @@
 ​        可以通过 命令查询  show variables like 'innodb_autoinc_lock_mode';
 ​        默认取值1 ，代表连续，事务未提交ID
 
-
+**自增长和锁：**
+		默认会有一个自增长计数器的表，通过select MAX(auto_inc_col) from t for update,当完成sql的插入后就释放当前锁，不是当前事务执行完毕；并发插入效率较低，一般需要等待前一个插入完成，特别是大批量插入
 
 ## 3.  InnoDB锁的实现方式
 
