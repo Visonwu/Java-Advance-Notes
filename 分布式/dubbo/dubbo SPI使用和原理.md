@@ -233,7 +233,7 @@ public class Protocol$Adaptive implements org.apache.dubbo.rpc.Protocol {
         if (arg1 == null) throw new IllegalArgumentException("url == null");
         org.apache.dubbo.common.URL url = arg1;
         
-        //这里可以发现如果我们没有配置相关协议，那么默认还是获取的DubboProcotol作为返回 
+        //这里可以发现如果我们没有配置相关协议，那么默认还是获取的DubboProcotol作为返回（这里的dubbo是@SPI中的值（Protocol）） 
         String extName = ( url.getProtocol() == null ? "dubbo" : url.getProtocol() );
         if(extName == null) throw new IllegalStateException("Failed to get extension (org.apache.dubbo.rpc.Protocol) name from url (" + url.toString() + ") use keys([protocol])");
         org.apache.dubbo.rpc.Protocol extension = (org.apache.dubbo.rpc.Protocol)ExtensionLoader.getExtensionLoader(org.apache.dubbo.rpc.Protocol.class).getExtension(extName);
