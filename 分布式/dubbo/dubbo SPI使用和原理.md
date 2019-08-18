@@ -327,9 +327,72 @@ public class AdaptiveExtensionFactory implements ExtensionFactory {
 }
 ```
 
+## 2.3 通过类型或者spi名字获取
+
+```java
+Protocol dubbo = ExtensionLoader.getExtensionLoader(Protocol.class) //这里上面有解析
+        .getExtension("dubbo");  //这里可以重点看下，这里会注入wrapper的相关信息
+//这里实际返回的是ProtocolFilterWrapper ——>QosProtocolWrapper->ProtocolListenerWrapper->DubboProtocol
+System.out.println(dubbo);
+```
+
+源码解析：
+
+```java
+public T getExtension(String name) {
+    if (StringUtils.isEmpty(name)) {
+        throw new IllegalArgumentException("Extension name == null");
+    }
+    if ("true".equals(name)) {
+        return getDefaultExtension();
+    }
+    Holder<Object> holder = getOrCreateHolder(name);
+    Object instance = holder.get();
+    if (instance == null) {
+        synchronized (holder) {
+            instance = holder.get();
+            if (instance == null) {
+                instance = createExtension(name); //通过名字创建实例
+                holder.set(instance);
+            }
+        }
+    }
+    return (T) instance;
+}
+
+//创建实例
+private T createExtension(String name) {
+        Class<?> clazz = getExtensionClasses().get(name);
+        if (clazz == null) {
+            throw findException(name);
+        }
+        try {
+            T instance = (T) EXTENSION_INSTANCES.get(clazz);
+            if (instance == null) {
+                EXTENSION_INSTANCES.putIfAbsent(clazz, clazz.newInstance());
+                instance = (T) EXTENSION_INSTANCES.get(clazz);
+            }
+            injectExtension(instance);//给当前的实例有set方法进行注入
+            //这个是在加载配置文件获取到相关的WrapperClass
+            Set<Class<?>> wrapperClasses = cachedWrapperClasses;
+            if (CollectionUtils.isNotEmpty(wrapperClasses)) {
+                //循环进行包装
+                for (Class<?> wrapperClass : wrapperClasses) {
+                    //这里使用WrapperClass的实例并进行set注入
+                    instance = injectExtension((T) wrapperClass.getConstructor(type).newInstance(instance));
+                }
+            }
+            return instance;
+        } catch (Throwable t) {
+            throw new IllegalStateException("Extension instance (name: " + name + ", class: " +
+                    type + ") couldn't be instantiated: " + t.getMessage(), t);
+        }
+    }
+```
 
 
-## 2.3 @Activate 自动激活扩展点
+
+## 2.4 @Activate 自动激活扩展点
 
 ​	自动激活扩展点，有点类似我们讲springboot 的时候用到的`@conditional`，根据条件进行自动激活。但是这里设计的初衷是，对于一个类会加载多个扩展点的实现，这个时候可以通过自动激活扩展点进行动态加载， 从而简化配置我们的配置工作@Activate 提供了一些配置来允许我们配置加载条件，比如group 过滤，比如key 过滤。
 
