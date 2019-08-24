@@ -305,8 +305,9 @@ properties.put(ConsumerConfig.GROUP_ID_CONFIG,"test");
 
 ​			我们现在大部分企业仍然用的是机械结构的磁盘，如果把消息以随机的方式写入到磁盘，那么磁盘首先要做的就是寻址，也就是定位到数据所在的物理地址，在磁盘上就要找到对应的柱面、磁头以及对应的扇区；这个过程相对内存来说会消耗大量时间，为了规避随机读写带来的时间消耗， kafka 采用顺序写的方式存储数据。即使是这样，但是频繁的 I/O 操作仍然会造成磁盘的性能瓶颈，所以 kafka还有一个性能策略
 
-**零拷贝**
-		消息从发送到落地保存，broker 维护的消息日志本身就是文件目录，每个文件都是二进制保存，生产者和消费者使用相同的格式来处理 。在消费者获取消息时，服务器先从硬盘读取数据到内存，然后把内存中的数据原封 不动 的通过 socket 发送给消费者。虽然这个操作描述起来很简单，但实际上经历了很多步骤 ；如下：
+### 1)零拷贝
+
+​		消息从发送到落地保存，broker 维护的消息日志本身就是文件目录，每个文件都是二进制保存，生产者和消费者使用相同的格式来处理 。在消费者获取消息时，服务器先从硬盘读取数据到内存，然后把内存中的数据原封 不动 的通过 socket 发送给消费者。虽然这个操作描述起来很简单，但实际上经历了很多步骤 ；如下：
 
 
 
@@ -333,7 +334,25 @@ properties.put(ConsumerConfig.GROUP_ID_CONFIG,"test");
 
 ​			使用sendfile ，只需要一次拷贝就行，允许操作系统 将数据直接从页缓存发送到网络上。所以在这个优化的路径中，只有最后一步将数据拷贝到网卡缓存中是需要的。
 
+### 2) 页缓存
 
+​	页缓存是操作系统实现的一种主要的磁盘缓存，但凡设计到缓存的，基本都是为了提升i/o性能，所以页缓存是用来减少磁盘I/O操作的。
+
+磁盘高速缓存有两个重要因素：
+
+- 第一，访问磁盘的速度要远低于访问内存的速度，若从处理器L1和L2高速缓存访问则速度更快。
+- 第二，数据一旦被访问，就很有可能短时间内再次访问。正是由于基于访问内存比磁盘快的多，所以磁盘的内存缓存将给系统存储性能带来质的飞越。
+
+​	当 一 个进程准备读取磁盘上的文件内容时， 操作系统会先查看待读取的数据所在的页(page)是否在页缓存(pagecache)中，如果存在（命中）则直接返回数据， 从而避免了对物理磁盘的I/0操作；如果没有命中， 则操作系统会向磁盘发起读取请求并将读取的数据页存入页缓存， 之后再将数据返回给进程。
+同样，如果 一 个进程需要将数据写入磁盘， 那么操作系统也会检测数据对应的页是否在页缓存中，如果不存在， 则会先在页缓存中添加相应的页， 最后将数据写入对应的页。 被修改过后的页也就变成了脏页， 操作系统会在合适的时间把脏页中的数据写入磁盘， 以保持数据的 一 致性
+
+​	Kafka中大量使用了页缓存， 这是Kafka实现高吞吐的重要因素之 一 。 虽然消息都是先被写入页缓存，
+然后由操作系统负责具体的刷盘任务的， 但在Kafka中同样提供了同步刷盘及间断性强制刷盘(fsync),
+可以通过 `log.flush.interval.messages` 和 `log.flush.interval.ms` 参数来控制。
+
+​	同步刷盘能够保证消息的可靠性，避免因为宕机导致页缓存数据还未完成同步时造成的数据丢失。但是
+实际使用上，我们没必要去考虑这样的因素以及这种问题带来的损失，消息可靠性可以由多副本来解
+决，同步刷盘会带来性能的影响。 刷盘的操作由操作系统去完成即可
 
 # 6.消息的文件存储机制
 
@@ -495,11 +514,11 @@ leader：表示当前分区的 leader是那个broker-id，其他节点就是foll
 
 #### 2）副本协同机制
 
-​		刚刚提到了，消息的读写操作都只会由leader 节点来接收和处理。 follower 副本只负责同步数据以及当 leader 副本所在的 broker 挂了以后，会从 follower 副本中选取新的leader 。
+​		刚刚提到了，消息的读写操作都只会由leader 节点来接收和处理。 follower 副本只负责同步数据以及当 leader 副本所在的 broker 挂了以后，会从 follower 副本中选取新的leader 。ISR最靠前的作为leader。
 
 
 
-​		写请求首先由Leader 副本处理，之后 follower 副本会从leader 上拉取写入的消息，这个过程会有一定的延迟，导致 follower 副本中保存的消息略少于 leader 副本，但是只要没有超出阈值都可以容忍。但是如果一个 follower 副本出现异常，比如宕机、网络断开等原因长时间没有同步到消息，那这个时候， leader 就会把它踢出去； kafka 通过 ISR集合来维护一个分区副本信息。
+​		写请求首先由Leader 副本处理，之后 follower 副本会从leader 上**拉取**写入的消息，这个过程会有一定的延迟，导致 follower 副本中保存的消息略少于 leader 副本，但是只要没有超出阈值都可以容忍。但是如果一个 follower 副本出现异常，比如宕机、网络断开等原因长时间没有同步到消息，那这个时候， leader 就会把它踢出去； kafka 通过 ISR集合来维护一个分区副本信息。
 
 
 
@@ -508,8 +527,8 @@ leader：表示当前分区的 leader是那个broker-id，其他节点就是foll
 1. 副本所在节点必须维持着与 zookeeper 的连接
 
 2. 副本最后一条消息的 offset 与 leader 副本的最后一条消息的 offset 之间的差值不能超过指定的阈值
-  （replica.lag.time.max.ms）
-  replica.lag.time.max.ms；如果该 follower 在此时间间隔内一直没有追上过 leader 的所有消息，则该 follower 就会被剔除 isr 列表
+    （replica.lag.time.max.ms）
+    `replica.lag.time.max.ms`；如果该 follower 在此时间间隔内一直没有追上过 leader 的所有消息，则该 follower 就会被剔除 isr 列表
 
   
 
@@ -627,9 +646,10 @@ follower副本收到 response 以后
 
 **数据丢失的解决方案**
 
-在kafka 0.11.0.0 版本以后，提供了一个新的解决方案， 使用 leader epoch 来解决这个问题 leader epoch 实际上是一对之 (epoch,offset) , epoch 表示 leader 的版本号，从 0开始，当 leader 变更过 1 次时 epoch 就会 +1 ，而 offset 则对应于该 epoch 版本的 leader 写入第一条消息的位移 。
-比如说(0,0) ; (1,50); 表示第一个 leader 从 offset= 0 开始写消息，一共写了50条，第二个 leader 版本号是 1 ，从 50 条处开始写消息。 这个信息保存在对应分区的本地磁盘文件中，
-文件名为： tml/kafka-log/leader-epoch-checkpoint
+​		在kafka 0.11.0.0 版本以后，提供了一个新的解决方案， 使用 leader epoch 来解决这个问题 leader epoch 实际上是一对之 (epoch,offset) , epoch 表示 leader 的版本号，从 0开始，当 leader 变更过 1 次时 epoch 就会 +1 ，而 offset 则对应于该 epoch 版本的 leader 写入第一条消息的位移 。
+
+​	比如说(0,0) ; (1,50); 表示第一个 leader 从 offset= 0 开始写消息，一共写了50条，第二个 leader 版本号是 1 ，从 50 条处开始写消息。 这个信息保存在对应分区的本地磁盘文件中，
+文件名为： `tmp/kafka-log/leader-epoch-checkpoint` 
 
 ​		leader broker中会保存这样的一个缓存，并定期地写入到一个 checkpoint 文件中。当leader 写 log 时它会尝试更新整个缓存 如果这个leader 首次写消息，则会在缓存中增加一个条目；否则就不做更新。而每次副本重新成为 leader 时会查询这部分缓存，获取出对应 leader 版本的 offset
 
@@ -644,10 +664,25 @@ follower副本收到 response 以后
 
 这就需要在可用性和一致性当中作出一个简单的折衷。
 如果一定要等待ISR 中的 Replica“ 活 过来，那不可用的时间就可能会相对较长。而且如果 ISR 中的所有 Replica 都无法 活 过来了，或者数据 都丢失了，这个 Partition 将永远不可用。
-选择第一个活 过来的 Replica 作为 Leader ，而这个Replica 不是 ISR 中的 Replica ，那即使它并不保证已经包含了所有已 commit 的消息，它也会成为 Leader 而作为consumer 的数据源（前文有说明，所有读写都由 Leader完成）。 在我们课堂讲的版本中，使用的是第一种策略。
+选择第一个活 过来的 Replica 作为 Leader ，而这个Replica 不是 ISR 中的 Replica ，那即使它并不保证已经包含了所有已 commit 的消息，它也会成为 Leader 而作为consumer 的数据源（前文有说明，所有读写都由 Leader完成）。 在我们讲的版本中，使用的是第一种策略。
 
 #### 5) ISR 的设计原理
 
 ​			在所有的分布式存储中，冗余备份是一种常见的设计方式，而常用的模式有同步复制和异步复制，按照 kafka 这个副本模型来说如果采用同步复制，那么需要要求 所有能工作的 Follower 副本都复制完，这条消息才会被认为提交成功，一旦有一个follower 副本出现故障，就会导致 HW 无法完成递增，消息就无法提交，消费者就获取不到消息。这种情况下，故障的Follower 副本会拖慢整个系统的性能，设置导致系统不可用
 如果采用异步复制leader 副本收到生产者推送的消息后，就认为次消息提交成功。 follower 副本则异步从 leader 副本同步。这种设计虽然避免了同步复制的问题，但是假设所有follower 副本的同步速度都比较慢他们保存的消息量远远落后于 leader 副本。 而此时 leader 副本所在的 broker 突然宕机，则会重新选举新的 leader 副本，而新的 leader 副本中没有原来leader 副本的消息。这就出现了消息的丢失。
-kafka权衡了同步和异步的两种策略，采用 ISR 集合，巧妙解决了两种方案的缺陷：当 follower 副本延迟过高， leader 副本则会把该 follower 副本提出 ISR 集合，消息依然可以快速提交。当 leader 副本所在的 broker 突然宕机，会优先将 ISR 集合中follower 副本选举为 leader ，新 leader 副本包含了 HW 之前的全部消息，这样 就避免了消息的丢失。
+
+​	kafka权衡了同步和异步的两种策略，采用 ISR 集合，巧妙解决了两种方案的缺陷：当 follower 副本延迟过高， leader 副本则会把该 follower 副本剔除 ISR 集合，消息依然可以快速提交。当 leader 副本所在的 broker 突然宕机，会优先将 ISR 集合中follower 副本选举为 leader ，新 leader 副本包含了 HW 之前的全部消息，这样 就避免了消息的丢失。
+
+
+
+
+
+# 7.leader的选举
+
+1. KafkaController会监听ZooKeeper的/brokers/ids节点路径，一旦发现有broker挂了，执行下面的逻辑。这里暂时先不考虑KafkaController所在broker挂了的情况，KafkaController挂了，各个broker会重新leader选举出新的KafkaController
+2. leader副本在该broker上的分区就要重新进行leader选举，目前的选举策略是
+  - a) 优先从isr列表中选出第一个作为leader副本，这个叫优先副本，理想情况下有限副本就是该分区的leader副本
+  - b) 如果isr列表为空，则查看该topic的`unclean.leader.election.enable`配置。
+    `unclean.leader.election.enable`：为true则代表允许选用非isr列表的副本作为leader，那么此时就意味着数据可能丢失，为false的话，则表示不允许，直接抛出NoReplicaOnlineException异常，造成leader副本选举失败。
+  - c) 如果上述配置为true，则从其他副本中选出一个作为leader副本，并且isr列表只包含该leader
+    副本。一旦选举成功，则将选举后的leader和isr和其他副本信息写入到该分区的对应的zk路径上。
