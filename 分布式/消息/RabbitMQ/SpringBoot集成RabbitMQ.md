@@ -92,14 +92,19 @@ public class MyProvider {
 # 4. application.xml配置相关的连接
 
 ```properties
-
+#对于rabbitMQ的支持
+spring.rabbitmq.host=192.168.124.150
+spring.rabbitmq.port=5672
+spring.rabbitmq.username=admin
+spring.rabbitmq.password=admin
+spring.rabbitmq.virtual-host=admin_vhost
 ```
 
 
 
 # 5. 消费者
 
-# 5.1 消费者1
+## 5.1 消费者1
 
 ```java
 @Component
@@ -127,7 +132,7 @@ public class SecondConsumer {
 }
 ```
 
-# 5.3 消费者3
+## 5.3 消费者3
 
 ```java
 @Component

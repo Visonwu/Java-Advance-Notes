@@ -1,6 +1,11 @@
 # 1.Mysql配置主从
 
-​	主从复制原理是从服务器从主服务器中通过二进制日志文件拉去日志进行备份，如下图：
+1. master将操作记录到二进制日志(binary log)中（这些记录叫做二进制日志事件，binary log events）
+
+2. Slave通过I/O Thread异步将master的binary log events拷贝到它的中继日志(relay log)；
+3. Slave执行relay日志中的事件，匹配自己的配置 将需要执行的数据，在slave服务上执行一遍从而达到复制数据的目的。
+
+如下图：
 
 ![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g6b5248xwkj20g607i3zy.jpg)
 
