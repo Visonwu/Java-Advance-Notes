@@ -156,7 +156,7 @@ AUTO：如果方法未抛出异常，则发送ack。
 
 集群主要用于实现高可用与负载均衡。
 
-RabbitMQ通过/var/lib/rabbitmq/.erlang.cookie来验证身份，需要在所有节点上保持一致。
+​		RabbitMQ通过`/var/lib/rabbitmq/.erlang.cookie`来验证身份，需要在所有节点上保持一致。
 
 集群有两种节点类型：
 
@@ -202,3 +202,21 @@ RabbitMQ通过/var/lib/rabbitmq/.erlang.cookie来验证身份，需要在所有�
 | HTTP API              | PUT /api/policies/%2f/ha-all {"pattern":"^ha.",<br/>"definition":{"ha-mode":"all"}} |
 | Web UI                | 1、avigate to Admin > Policies > Add / update a policy<br/>2、Name 输入：mirror_image<br/>3、Pattern 输入：^（代表匹配所有）<br/>4、Definition 点击HA mode，右边输入：all<br/>5、Add policy |
 
+
+
+## 1.3 配置
+
+如图：
+
+![mLxNlj.png](https://s2.ax1x.com/2019/08/29/mLxNlj.png)
+
+规划：
+内存节点1：192.168.8.40
+内存节点2：192.168.8.45
+磁盘节点：192.168.8.150
+VIP：192.168.8.220
+
+1、我们规划了两个内存节点，一个磁盘节点。所有的节点之间通过镜像队列的方式同步数据。内存节点用来给应用访问，磁盘节点用来持久化数据。
+2、为了实现对两个内存节点的负载，我们安装了两个HAProxy，监听两个5672和15672 的端口。
+
+3、安装两个Keepalived ， 一主一备。两个Keepalived 抢占一个VIP192.168.8.220。谁抢占到这个VIP，应用就连接到谁，来执行对MQ 的负载。这种情况下，我们的Keepalived 挂了一个节点，没有影响，因为BACKUP 会变成MASTER，抢占VIP。HAProxy 挂了一个节点，没有影响，我们的VIP 会自动路由的可用的HAProxy 服务。RabbitMQ 挂了一个节点，没有影响， 因为HAProxy会自动负载到可用的节点。

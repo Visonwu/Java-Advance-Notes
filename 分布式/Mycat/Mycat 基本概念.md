@@ -195,7 +195,7 @@
 
 > false：会报错
 
-4、 sqlMaxLimit属性
+4、 `sqlMaxLimit`属性
 
 ​	相当于sql的所有结果集中，加上【limit N】。如果sql本身已经指定limit，则以sql指定的为准。
 
@@ -229,7 +229,11 @@
 
 ​		指定该逻辑表对应真实表的主键。MyCat会缓存主键（通过primaryKey属性配置）和具体 dataNode的信息。当分片规则使用非主键进行分片时，那么在使用主键进行查询时，MyCat就会通过缓存先确定记录在哪个dataNode上，然后再在该dataNode上执行查询；
 
-​		关于Mycat的主键缓存，其机制是：当根据主键查询的SQL语句第一次执行时，Mycat会对其结果进行分析，确定该主键在哪个分片上，并进行该主键到分片ID的缓存。通过连接MyCAT的9066管理端口，执行show@@cache，可以显示当前缓存的使用情况。可在sql执行前后的2个时间点执行show @@cache，通过结果信息中的LAST_PUT和LAST_ACCESS列，判断相应表的缓存是否有被更新过。
+​		`关于Mycat的主键缓存，其机制是：当根据主键查询的SQL语句第一次执行时，Mycat会对其结果进行分析，确定该主键在哪个分片上，并进行该主键到分片ID的缓存。通过连接MyCAT的9066管理端口，执行show@@cache，可以显示当前缓存的使用情况。可在sql执行前后的2个时间点执行show @@cache，通过结果信息中的LAST_PUT和LAST_ACCESS列，判断相应表的缓存是否有被更新过。`
+
+​	这个其实建议能不用主键则不用主键，可以用**唯一键**代替,因为mycat会对该唯一键做缓存，下次查询就直接去相应分片节点查询，就不用再走所有节点进行查询了。
+
+
 
 6、 type属性
 
@@ -241,11 +245,13 @@
 
 7、 autoIncrement属性
 
+​		这个使用在分布式全局ID使用的
+
 8、subTables属性
 
 分表配置，mycat1.6之后开始支持，但dataNode 在分表条件下只能配置一个。
 
-9、 needAddLimit属性
+9、 `needAddLimit`属性
 
 ​	与schema标签的sqlMaxLimit配合使用，如果needAddLimit值为false，则语句不会加上limit
 
@@ -493,4 +499,135 @@ JQndRMi10UkbJM6iGZh1xc9P+X9bYC9GXHhuacGEqLCBSDvo8FHUOBRlDBqxFgbcXCsBp/oZ0h6lTUZ/
 
 
 ## 3.3 server.xml配置
+
+```bash
+#登录mycat的管理客户端
+root@localhost>mysql -uroot -P9066 -p123456 -h192.168.8.151
+
+//执行命令表示重新加载修改的mycat配置文件
+reload @@config_all;
+```
+
+重要的信息如下：
+
+```xml
+system
+    sequnceHandlerType  //和分布式全局有关
+    Processors			//处理mycat的进程数时候多少，不设置会根据CPU核数进行配置
+    processorExecutor	//进程里面的线程数是多少
+    serverPort			//mycat的进程端口
+    managerPort			//mycat的管理端口
+    firewall			//对机器的访问 做白名单和黑名单限制
+    user				//给用户添加不同的数据库权限
+        benchmark		//限流，表示当前用户 的连接数，超过这个连接数 就等待或者禁止连接
+        usingDecrypt	//同样做加密操作
+        privileges		//优先级配置，如下所示：
+```
+
+
+
+
+
+详细的配置如下所示：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- - - Licensed under the Apache License, Version 2.0 (the "License"); 
+	- you may not use this file except in compliance with the License. - You 
+	may obtain a copy of the License at - - http://www.apache.org/licenses/LICENSE-2.0 
+	- - Unless required by applicable law or agreed to in writing, software - 
+	distributed under the License is distributed on an "AS IS" BASIS, - WITHOUT 
+	WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. - See the 
+	License for the specific language governing permissions and - limitations 
+	under the License. -->
+<!DOCTYPE mycat:server SYSTEM "server.dtd">
+<mycat:server xmlns:mycat="http://io.mycat/">
+	<system>
+	<property name="useSqlStat">0</property>  <!-- 1为开启实时统计、0为关闭 -->
+	<property name="useGlobleTableCheck">0</property>  <!-- 1为开启全加班一致性检测、0为关闭 -->
+
+		<property name="sequnceHandlerType">2</property>
+      <!--  <property name="useCompression">1</property>--> <!--1为开启mysql压缩协议-->
+        <!--  <property name="fakeMySQLVersion">5.6.20</property>--> <!--设置模拟的MySQL版本号-->
+	<!-- <property name="processorBufferChunk">40960</property> -->
+	<!-- 
+	<property name="processors">1</property> 
+	<property name="processorExecutor">32</property> 
+	 -->
+		<!--默认为type 0: DirectByteBufferPool | type 1 ByteBufferArena-->
+		<property name="processorBufferPoolType">0</property>
+		<!--默认是65535 64K 用于sql解析时最大文本长度 -->
+		<!--<property name="maxStringLiteralLength">65535</property>-->
+		<!--<property name="sequnceHandlerType">0</property>-->
+		<!--<property name="backSocketNoDelay">1</property>-->
+		<!--<property name="frontSocketNoDelay">1</property>-->
+		<!--<property name="processorExecutor">16</property>-->
+		<!--
+			<property name="serverPort">8066</property> <property name="managerPort">9066</property> 
+			<property name="idleTimeout">300000</property> <property name="bindIp">0.0.0.0</property> 
+			<property name="frontWriteQueueSize">4096</property> <property name="processors">32</property> -->
+		<!--分布式事务开关，0为不过滤分布式事务，1为过滤分布式事务（如果分布式事务内只涉及全局表，则不过滤），2为不过滤分布式事务,但是记录分布式事务日志-->
+		<property name="handleDistributedTransactions">0</property>
+		
+			<!--
+			off heap for merge/order/group/limit      1开启   0关闭
+		-->
+		<property name="useOffHeapForMerge">1</property>
+
+		<!--
+			单位为m
+		-->
+		<property name="memoryPageSize">1m</property>
+
+		<!--
+			单位为k
+		-->
+		<property name="spillsFileBufferSize">1k</property>
+
+		<property name="useStreamOutput">0</property>
+
+		<!--
+			单位为m
+		-->
+		<property name="systemReserveMemorySize">384m</property>
+
+
+		<!--是否采用zookeeper协调切换  -->
+		<property name="useZKSwitch">true</property>
+
+
+	</system>
+	
+	<!-- 全局SQL防火墙设置 -->
+	<!-- 
+	<firewall> 
+	   <whitehost>
+	      <host host="127.0.0.1" user="mycat"/>
+	      <host host="127.0.0.2" user="mycat"/>
+	   </whitehost>
+       <blacklist check="false">
+       </blacklist>
+	</firewall>
+	-->
+	
+	<user name="root">
+		<property name="password">123456</property>
+        <!-- 数据库 权限设置 -->
+		<property name="schemas">db_store,db_user</property>
+		<!--<property name="benchmark">1000</property>-->
+		<!-- 表级 DML 权限设置  -->
+   <!-- （insert,update,select,delete）IUSD 下面的dml分别是这四个权限，1表示拥有，0表示没权限 -->
+		<!-- 		
+		<privileges check="false">
+			<schema name="db_user" dml="0110" >
+				<table name="users" dml="1111"></table>  IUSD
+				<table name="useraddres" dml="1110"></table>
+			</schema>
+		</privileges>		
+		 -->
+	</user>
+
+</mycat:server>
+
+```
 
