@@ -182,7 +182,7 @@ SendResult中，有一个sendStatus状态，表示消息的发送状态。一共
 
 ​	和kafka一样，多个consumer会对消息做负载均衡，意味着同一个topic下的不同messageQueue会分发给同一个group中的不同consumer。同时，如果我们希望消息能够达到广播的目的，那么只需要把consumer加入到不同的group就行。
 
-​		RocketMQ提供了两种消息消费模型，一种是pull主动拉去，另一种是push，被动接收。但实际上RocketMQ都是pull模式，只是push在pull模式上做了一层封装，也就是pull到消息以后触发业务消费者注册到这里的callback. RocketMQ是基于长轮训来实现消息的pull。
+​		RocketMQ提供了两种消息消费模型，一种是pull主动拉去，另一种是push，被动接收。但实际上RocketMQ都是**pull模式，**只是push在pull模式上做了一层封装，也就是pull到消息以后触发业务消费者注册到这里的callback. RocketMQ是基于长轮训来实现消息的pull。
 
 nameServer的地址：name server地址，用于获取broker、topic信息
 
