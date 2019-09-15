@@ -68,3 +68,6 @@ public void addPass(int count) {
 这个需要依赖第三方组件TokenServer来实现，服务都通过Token Server获取配置规则（规则又放置在nacos中，为了保证高可用toker server挂了，所以每一个服务有单独从nacos中获取限流规则）
 
 ![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g5vsseytyuj20mu0cudgy.jpg)
+
+
+

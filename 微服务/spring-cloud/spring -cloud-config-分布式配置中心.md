@@ -1,6 +1,10 @@
-		**spring-cloud-config**是Spring-Cloud团队全新的一个项目，用来对分布式系统的基础设施和微服务提供集中化配置处理。
+		**spring-cloud-config** 是Spring-Cloud团队全新的一个项目，用来对分布式系统的基础设施和微服务提供集中化配置处理。
 
 例子：可以参考zuul整合案例
+
+
+
+
 
 # 1.Spring-Cloud配置相关信息
 

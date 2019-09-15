@@ -10,7 +10,7 @@
 
 - 5>使用16个db存储，相互隔离，默认用第0个db
 
-## 2. 存储结构
+## 1.1. 存储结构
 
 ​     大家一定对字典类型的数据结构非常熟悉，比如map ，通过key value的方式存储的结构。 redis的全称是remote dictionary server(远程字典服务器)，它以字典结构存储数据，并允许其他应用通过TCP协议读写字典中的内容。数据结构如下：
 
@@ -147,7 +147,143 @@ redis>object encoding key
     }
     ```
 
-  - 
+    
+    
+
+## 2.6 Geo地理位置存储
+
+​		Geo存储通过一定算法将经纬度（二维）转为一个一维数存储，当要再次通过key取出原来的经纬度会有一定误差，不过一般在我们实际应用过程应该也是能够接受的。
+
+​	geo地址位置存储支持如下命令，包含添加
+
+```xml
+GEOADD key latitude longitude  name 	//添加地理位置
+GEODIST key  name1 name2 [unit] 		//计算两个元素之间的距离
+GEOHASH key name					 //获取元素经纬度坐标经过geohash算法生成的base32编码值
+GEOPOS	key name [..]				 //获取集合中任意元素的经纬度坐标，可以一次获取多个
+GEORADIUS	key name longitude latitude radius unit		 //根据坐标点查找附近位置的元素 
+GEORADIUSBYMEMBER	key name radius unit [...] 			//查找指定元素地点位置的有哪些人
+```
+
+​		geo地理位置的底层存储原理，使用的是SortSet数据结构存储。把经纬度通过geoHash算法转换为一个整数值，作为score存储在SortSet中
+
+**Redis Geo使用时的注意事项**
+			在一个地图应用中，车的数据、餐馆的数据、人的数据可能会有百万千万条，如果使用 Redis 的 Geo 数据结构，它们将全部放在一个 zset 集合中。**在 Redis 的集群环境中，集合可能会从一个节点迁移到另一个节点，如果单个 key 的数据过大，会对集群的迁移工作造成较大的影响，在集群环境中单个 key 对应的数据量不宜超过 1M，否则会导致集群迁移出现卡顿现象，影响线上服务的正常运行。**
+
+​	所以，这里建议 Geo 的数据**使用单独的 Redis 实例部署，不使用集群环境。**
+
+​	如果数据量过亿甚至更大，就需要对 Geo 数据进行拆分，按国家拆分、按省拆分，按市拆分，在人口特大城市甚至可以按区拆分。这样就可以显著降低单个 zset 集合的大小。(注意：zset集合大小，进行合适地切分)
+
+
+
+### GeoHash算法思想
+
+```text
+	GeoHash算法将二维的经纬度数据映射到一维的整数，这样所有的元素都将挂载到一条线上，距离靠近的二维坐标映射到一维后的点之间距离会很接近。当我们想要计算附近的人时，首先将目标位置映射到这条线上，然后在这条一维的线上获取附近的点就ok了。
+
+	那这个映射算法具体是怎样的呢？它将整个地球看成一个二维平面，然后划分成了一系列正方形的方格，就好比围棋棋盘。所有的地图元素坐标都将放置于唯一的方格中。方格越小，坐标越精确。然后对这些方格进行整数编码，越是靠近的方格编码越是接近。那如何编码呢？一个最简单的方案就是切蛋糕法。设想一个正方形的蛋糕摆在你面前，二刀下去均分分成四块小正方形，这四个小正方形可以分别标记为 00,01,10,11 四个二进制整数。然后对每一个小正方形继续用二刀法切割一下，这时每个小小正方形就可以使用 4bit 的二进制整数予以表示。然后继续切下去，正方形就会越来越小，二进制整数也会越来越长，精确度就会越来越高
+	
+	编码之后，每个地图元素的坐标都将变成一个整数，通过这个整数可以还原出元素的坐标，整数越长，还原出来的坐标值的损失程度就越小。对于「附近的人」这个功能而言，损失的一点精确度可以忽略不计。
+
+GeoHash算法会对上述编码的整数继续做一次base32编码(0 ~ 9,a ~ z)变成一个字符串。Redis中经纬度使用52位的整数进行编码，放进zset中，zset的value元素是key，score是GeoHash的52位整数值。在使用Redis进行Geo查询时，其内部对应的操作其实只是zset(skiplist)的操作。通过zset的score进行排序就可以得到坐标附近的其它元素，通过将score还原成坐标值就可以得到元素的原始坐标
+
+总之，Redis中处理这些地理位置坐标点的思想是: 二维平面坐标点 --> 一维整数编码值 --> zset(score为编码值) --> zrangebyrank(获取score相近的元素)、zrangebyscore --> 通过score(整数编码值)反解坐标点 --> 附近点的地理位置坐标。
+```
+
+
+
+## 2.7 bit位操作 - 大数据
+
+​	主要是用来处理大数据，通过位操作速度更快；
+
+场景：用于数据量上亿的场景下，例如几亿用户系统的签到，去重登录次数统计，某用户是否在线状态等等。
+
+​		想想一下腾讯10亿用户，要几个毫秒内查询到某个用户是否在线，你能怎么做？千万别说给每个用户建立一个key，然后挨个记（你可以算一下需要的内存会很恐怖，而且这种类似的需求很多，腾讯光这个得多花多少钱。。）好吧。这里要用到位操作——使用setbit、getbit、bitcount命令。
+
+### 1）存储原理
+
+​	bit位存储采用的SDS存储，只是字节数组中的一个字节又划分为了位存储而已。动态扩展
+
+### 2）命令操作
+
+​			Redis提供了SETBIT、GETBIT、BITCOUNT、BITOP四个命令用于处理二进制位数组（bit array，又称“位数组”）。BITOP计算出来的任然是个二进制位数组
+​			其中，SETBIT命令用于为位数组指定偏移量上的二进制位设置值，位数组的偏移量从0开始计数，而二进制位的值则可以是0或者1：
+
+```bash
+# SETBIT key offset value     value只能是1或者0
+
+redis＞ SETBIT bit 0 1  		# 0000 0001￼
+(integer) 0￼
+redis＞ SETBIT bit 3 1        # 0000 1001￼
+(integer) 0￼
+redis＞ SETBIT bit 0 0        # 0000 1000￼
+(integer) 1
+```
+
+GETBIT命令则用于获取位数组指定偏移量上的二进制位的值：
+
+```bash
+## GETBIT key offset   
+
+redis＞ GETBIT bit 0			 # 0000 1000￼
+(integer) 0￼
+redis＞ GETBIT bit 3 		 # 0000 1000￼
+(integer) 1￼
+```
+
+BITCOUNT命令用于统计位数组里面，值为1的二进制位的数量：
+
+```bash
+redis＞ BITCOUNT bit  		 # 0000 1000￼
+(integer) 1￼
+redis＞ SETBIT bit 0 1        # 0000 1001￼
+(integer) 0￼
+redis＞ BITCOUNT bit￼
+(integer) 2￼
+redis＞ SETBIT bit 1 1        # 0000 1011￼
+(integer) 0￼
+redis＞ BITCOUNT bit￼
+(integer) 3
+```
+
+最后，BITOP命令既可以对多个位数组进行按位与（and）、按位或（or）、按位异或（xor）运算：
+
+```bash
+# BITOP operation destkey key [key ...] 
+# operation 可以是 AND 、 OR 、 NOT 、 XOR 这四种操作中的任意一种, NOT只支持一个key
+
+redis＞ SETBIT x 3 1        # x = 0000 1011￼
+(integer) 0￼
+redis＞ SETBIT x 1 1￼
+(integer) 0￼
+redis＞ SETBIT x 0 1￼
+(integer) 0￼
+redis＞ SETBIT y 2 1       # y = 0000 0110￼
+(integer) 0￼
+redis＞ SETBIT y 1 1￼
+(integer) 0￼
+redis＞ SETBIT z 2 1       # z = 0000 0101￼
+(integer) 0￼
+redis＞ SETBIT z 0 1￼
+(integer) 0￼
+redis＞ BITOP AND and-result x y z       # 0000 0000￼
+(integer) 1￼
+redis＞ BITOP OR or-result x y z         # 0000 1111￼
+(integer) 1￼
+redis＞ BITOP XOR xor-result x y z       # 0000 1000￼
+(integer) 1
+```
+
+也可以对给定的位数组进行取反（not）运算：
+
+```bash
+redis＞ SETBIT value 0 1                 # 0000 1001￼
+(integer) 0￼
+redis＞ SETBIT value 3 1￼
+(integer) 0￼
+redis＞ BITOP NOT not-value value     	# 1111 0110￼
+(integer) 1
+```
 
 
 
@@ -180,3 +316,75 @@ redis> object idletime key
 ```
 
 这个和服务器的内存回收算法volatile-lru和allkeys-lru有关系
+
+
+
+# 5.慢查询日志
+
+Redis提供慢查询日志用来记录执行时间超过给定时间的命令请求，服务器有两个配置选项
+
+```properties
+# 选项指定执行时间超过多少微秒（1秒等于1 000 000微秒）的命令请求会被记录到日志上。
+slowlog-log-slower-than
+
+# 选项指定服务器最多保存多少条慢查询日志，后来的日志替换之前的日志
+slowlog-max-len
+```
+
+通过`config`命令可以直接实现配置操作，具体参考官网：<https://redis.io/commands/config-set>
+
+```bash
+#设置执行时间操作多少微秒存储数据
+redis>config set slowlog-log-slower-than 10000
+
+redis>config get slowlog-log-slower-than 
+
+#设置最长日志条数
+redis>config set slowlog-max-len 10000
+
+redis>config get slowlog-max-len
+```
+
+通过`slowlog` 管理慢查询日志信息，具体参考官网：<https://redis.io/commands/slowlog>
+
+```bash
+#slowlog获取慢查询日志信息
+redis>slowlog get 
+
+#slowlog 获取慢查询日志信息长度
+redis>slowlog len
+
+#slowlog 清空慢查询日志信息
+redis>slowlog reset
+```
+
+
+
+# 6.监视器
+
+​	客户端通过监视器可以检测服务器现在正在处理的命令，操作有如下几种方式：
+
+```bash
+localhsot:1> redis-cli -a 123456 monitor
+1339518083.107412 [0 127.0.0.1:60866] "keys" "*"
+1339518087.877697 [0 127.0.0.1:60866] "dbsize"
+```
+
+
+
+```bash
+$ telnet localhost 6379
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+MONITOR
++OK
++1339518083.107412 [0 127.0.0.1:60866] "keys" "*"
+```
+
+**监视器的原理：**
+
+​			监视器服务器的实现，是在每个命令执行完毕后，遍历有监视器列表并向每个监视器发送信息，这样就会造成服务器压力较大，就一台监视器看来，通过redis-benchmark测试至少性能降低一半，具体见官网：<https://redis.io/commands/monitor> 
+
+
+

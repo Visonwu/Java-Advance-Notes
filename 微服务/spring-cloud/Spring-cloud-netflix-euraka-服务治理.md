@@ -1,3 +1,7 @@
+目前注册中心可以有：
+
+**Zookeeper，Eureka，Consul，Etcd，Nacos等**
+
 
 
 **Eureka拥有** 
@@ -52,7 +56,7 @@ Spring Cloud 系列实战运行环境如下：
 
 ### Eureka Server 应用名称
 spring.application.name = spring-cloud-eureka-server
-### Eureka Server 服务端口
+### Eureka Server 服务端口 ，设置为0表示自己生成一个随机端口
 server.port= 9090
 ### 取消服务器自我注册
 eureka.client.register-with-eureka=false
@@ -794,3 +798,118 @@ eureka.client.healthcheck.enabled=ture
 https://www.consul.io/intro/vs/zookeeper.html
 
 https://www.consul.io/intro/vs/eureka.html
+
+
+
+# 10 spring-cloud-eureka集成第三方注册中心
+
+​		主要是通过`org.springframework.cloud.client.discovery.DiscoveryClient`抽象完成不同的服务注册，
+
+这里可以使用eureka，zookeeper，consul
+
+依赖配置：pom.xml
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <parent>
+        <artifactId>spring-cloud-all</artifactId>
+        <groupId>com.gupaoedu</groupId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+    <modelVersion>4.0.0</modelVersion>
+
+    <artifactId>spring-config-client</artifactId>
+
+    <dependencies>
+        <!-- Eureka 服务发现与注册客户端依赖 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+        
+        <!-- Zookeeper 服务发现与注册客户端依赖 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-zookeeper-discovery</artifactId>
+        </dependency>
+        
+        <!-- Consul 服务发现与注册客户端依赖 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-consul-discovery</artifactId>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>
+```
+
+
+
+​			`spring.yaml`文件配置，如下通过配置将eureka，consul，zookeeper服务注册发现都关闭，然后通过profile自定义开启，避免冲突
+
+```yaml
+spring:
+  application:
+    name: config-client
+  cloud:
+    zookeeper:
+      enabled: false # Zookeeper 服务发现与注册失效，这里关闭它，
+    consul:
+      discovery:
+        enabled: false # Consul 服务发现与注册失效，这里关闭它
+
+server:
+  port: 0 #随机端口
+
+## 默认 profile 关闭自动特性 设置eureka注册发现用来关闭避免影响其他服务注册信息
+eureka:
+  client:
+    enabled: false # Eureka 服务发现与注册失效（默认）
+
+
+
+--- # Profile For Eureka
+spring:
+  profiles: eureka
+# Eureka 客户端配置
+eureka:
+  server: # 官方不存在的配置（自定义配置）,这是服务器地址配置
+    host: 127.0.0.1
+    port: 12345
+  client:
+    enabled: true
+    serviceUrl:
+      defaultZone: http://${eureka.server.host}:${eureka.server.port}/eureka
+    registryFetchIntervalSeconds: 5 # 5 秒轮训一次
+  instance:
+    instanceId: ${spring.application.name}:${server.port}
+
+--- # Profile For Zookeeper
+spring:
+  profiles: zookeeper # spring-cloud-zookeeper可以通过ZookeeperProperties查看具体配置
+  cloud:
+    zookeeper:
+      enabled: true    #开启注册发现功能
+      connectString: 127.0.0.1:2181
+
+--- # Profile For Consul
+spring:
+  profiles: consul
+  cloud:
+    consul:
+      discovery:
+        enabled: true  #开启注册发现功能
+        ipAddress: 127.0.0.1
+        port: 8500
+
+```
+
