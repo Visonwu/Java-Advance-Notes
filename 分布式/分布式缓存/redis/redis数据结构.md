@@ -287,6 +287,14 @@ redis＞ BITOP NOT not-value value     	# 1111 0110￼
 
 
 
+## 2.8 Sort对集合进行排序
+
+​		Redis的SORT命令可对列表键，集合键或者有序集合进行再次排序，排序不会对原来的集合影响，会重新建立一个数组用来存储排序后的结果，排序后的结果可以通过limit，desc/asc，by类似sq进行相关处理
+
+具体参考官网：<https://redis.io/commands/sort> 
+
+
+
 # 3.对象共享
 
 让多个键共享一个值的对象，包含上面各种类型的指针指向这个的对象
