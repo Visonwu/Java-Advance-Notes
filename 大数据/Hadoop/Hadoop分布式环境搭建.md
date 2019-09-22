@@ -1,0 +1,238 @@
+这里的分布式就是：多个进程放到不同机器运行
+
+**机器规划**
+
+| 机器一        node1 192.168.124.152 | 机器二       node2 192.168.124.153 | 机器三     node3 192.168.124.154 |
+| ----------------------------------- | ---------------------------------- | -------------------------------- |
+| NameNode                            |                                    |                                  |
+| DataNode                            | DataNode                           | DataNode                         |
+|                                     |                                    | SecondaryNameNode                |
+|                                     | ResourceManager                    |                                  |
+| NodeManager                         | NodeManager                        | NodeManager                      |
+
+
+
+设置各自的主机名 hostname设置，然后配置各自的hosts
+
+```bash
+192.168.124.152 node1
+192.168.124.153 node2
+192.168.124.154 node3
+```
+
+---
+
+---
+
+
+
+## 1.NTP时间服务器同步
+
+ 同步各个的服务器的时间一致；当然这个也可以不配置，个人认为自己搭建可以不配置。
+
+这里然机器一当成时间服务器，机器2/3保持机器一的时间
+
+### 1.1 三台机器共同操作
+
+1）安装
+
+```bash
+$> yum -y install ntp
+```
+
+
+
+2）设置时钟同步开启
+
+```bash
+$> vim /etc/sysconfig/ntpd
+SYNC_HWCLOCK=yes
+```
+
+
+
+### 1.2 设置主时间服务器
+
+这里主服务器用node1
+
+**1) 修改配置**
+
+```bash
+$> vim /etc/ntp.conf
+```
+
+```sh
+# Hosts on local network are less restricted.
+# 这个是修改原有的,这里配置的是当前的网段，以及子掩码
+restrict 192.168.124.0 mask 255.255.255.0 nomodify notrap
+
+#这个是新增的，打开注释
+server 127.127.1.0
+fudge  127.127.1.0 stratum 10
+
+```
+
+**2）然后重启服务**
+
+```bash
+$> systemctl restart ntpd
+```
+
+
+
+### 1.3 然后在node2/node3通过手动同步的方式试一下
+
+```bash
+$> /usr/sbin/ntpdate node1
+```
+
+
+
+### 1.4  node2/node3定时同步
+
+分别在node2和node3设置定时器去同步时间
+
+```bash
+$> crontab -e
+
+#配置内容，10分钟定时执行同步一次
+0-59/10 * * * * /usr/sbin/ntpdate node1
+```
+
+
+
+## 2. 开始Hadoop分布式配置
+
+同单机模式一样
+
+步骤一：分别解压文件
+
+步骤二：分别添加环境变量HADOOP_HOME
+
+步骤三：分别修改/etc/hadoop/hadoop-env.sh中JAVA_HOME的绝对路径
+
+
+
+**步骤四：在node1节点中的配置文件中配置**
+
+`hadoop/etc/hadoop/core-size.xml`
+
+```xml
+<!-- 配置hdfs 配置当前机器node1为namenode -->
+<configuration>
+  <property>
+    <name>fs.defaultFS</name>
+    <value>hdfs://node1:8020</value>
+  </property>
+</configuration>
+```
+
+`hadoop/etc/hadoop/hdfs-size.xml`
+
+```xml
+<!-- 配置node3为secondearyNameNode -->
+<configuration>
+ <property>
+   <name>dfs.namenode.secondary.http-address</name>
+   <value>node3:50090</value>
+ </property>
+</configuration>
+```
+
+`hadoop/etc/hadoop/core-size.xml`
+
+```xml
+<configuration>
+    <!-- 配置yarn的作业类型mapreduce_shuffle -->
+     <property>
+       <name>yarn.nodemanager.aux-services</name>
+       <value>mapreduce_shuffle</value>
+     </property>
+    
+    <!-- 配置node2为yarn的resourManager -->
+     <property>     
+      <name>yarn.resourcemanager.hostname</name>
+      <value>node2</value>
+     </property>
+</configuration>
+```
+
+`$> cp mapred-site.xml.template  mapred-site.xml`
+
+`$> vim hadoop/etc/hadoop/mapred-size.xml`
+
+```xml
+ <!-- 设置yarn 作为环境调度-->
+<configuration>
+     <property>
+       <name>mapreduce.framework.name</name>
+       <value>yarn</value>
+     </property>
+</configuration>
+```
+
+`$> vim hadoop/etc/hadoop/slaves` 设置从节点，即设置DataNode和NodeManage节点的位置
+
+#去掉原来的localhost
+
+```xml
+node1
+node2
+node3
+```
+
+**步骤五：将node1节点中的配置文件copy到其他node2/node3**
+
+```bash
+# 在当前hadoop/etc/hadoop/ 目录下
+scp -r * root@192.168.124.153:/usr/local/hadoop/etc/hadoop
+scp -r * root@192.168.124.154:/usr/local/hadoop/etc/hadoop
+```
+
+
+
+**步骤六：配置各个服务之间免密码输入**
+
+​	避免在启动的时候要不停的输入密码，三个节点都要做如下所示
+
+1）生成密钥匙对
+
+```bash
+$> cd /root
+$> ssh-keygen -t rsa
+```
+
+2）将公钥拷贝，也是需要copy给自己的 
+
+```bash
+$> cd .ssh
+$> ssh-copy-id node1
+$> ssh-copy-id node2
+$> ssh-copy-id node3
+```
+
+
+
+**步骤六：启动**
+
+​     在节点node1启动hdfs，会把三个几点的对应hdfs都启动起来，可以通过jps查看
+
+```bash
+# hadoop/sbin
+$> sh start-dfs.sh
+```
+
+​    在节点node2启动yarn，会把三个几点的对应yarn都启动起来，可以通过jps查看
+
+```bash
+# hadoop/sbin
+$> sh start-yarn.sh
+```
+
+
+
+**步骤七：浏览器访问**
+
+​	通过node1节点访问`192.168.124.152:50070`
+
+​	通过node2节点访问`192.168.124.153:8088`
