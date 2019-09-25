@@ -1,6 +1,4 @@
-
-
-## Hadoop伪分布式环境配置
+# 一、Hadoop伪分布式环境配置
 
 相关的配置信息我们都可以通过官网<https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/SingleCluster.html>查看：
 
@@ -105,7 +103,7 @@ $> jps
 
 **3）浏览器访问**
 
-​	然后本地浏览器访问 `${ip}:50070` , 这里的50070是Http协议的端口号，上面自己配置的8020是节点间通信的RPC端口号
+​	然后本地浏览器访问 `${ip}:50070` , 这里的50070是Http协议的端口号，上面自己配置的8020是节点间通信的RPC端口号,查看hdfs的管理页面
 
 
 
@@ -171,7 +169,7 @@ $ > sh start-yarn.sh
 
 **4) 访问浏览器**
 
-​     然后本地浏览器访问 `${ip}:8088` ，查看信息管理界面，能够查看则表示成功了
+​     然后本地浏览器访问 `${ip}:8088` ，查看yarn信息管理界面，能够查看则表示成功了
 
 
 
@@ -181,4 +179,21 @@ $ > sh start-yarn.sh
 # $HADOOP_HOME/sbin下 ,一键启动三个节点
 $ > sh stop-yarn.sh
 ```
+
+
+
+# 二、mapreduce案例
+
+```bash
+#查看有多少案例
+$> sh bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.7.jar
+
+#使用例子执行本地文件中wordcount功能
+$> sh bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.7.7.jar wordcount file:/usr/local/hadoop/LICENSE.txt file:/usr/local/hadoop/output
+```
+
+
+
+- 这里要用file来加载和输出（output），和单机不同，不然加载的就是服务器hdfs中的文件，然后观察yarn控制台页面的变化，当然这个输出目录不能存在
+- 然后观察output输出的结果统计
 

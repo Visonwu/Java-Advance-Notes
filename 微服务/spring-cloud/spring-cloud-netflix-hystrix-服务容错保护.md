@@ -1,4 +1,6 @@
-**Hystrix提供了功能：**
+SpringCloud 使用CircuitBreaker 整合了netflix的Hystrix，自2017年开始后不再更新Hystrix，只是维护了。
+
+Hystrix提供了功能：**
 
 - 熔断
 
@@ -83,7 +85,7 @@ public class HelloServiceProxy implements HelloService {
 
 ​    	上面Hystrix使用注解的方式实现，当然我们还可以通过继承 `HystrixCommand`或者`HystrixObservableCommand`实现。
 
-
+详细的配置情况：<https://github.com/Netflix/Hystrix/wiki/Configuration>
 
 **编程模型**
 
@@ -601,7 +603,7 @@ public interface HystrixCircuitBreaker {
 
 "bulkhead pattern"舱壁模式，通过该模式使每一个依赖服务创建一个单独的线程池，这样某个依赖服务出现高延迟也不会影响其他服务
 
-- 使用线程池实现依赖隔离
+- 使用线程池实现依赖隔离，默认
 
 - 使用信号量控制依赖服务的并发量，不过信号量不能设置超时和异步处理，有两处支持信号量
 

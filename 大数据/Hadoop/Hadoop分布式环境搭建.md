@@ -215,6 +215,8 @@ $> ssh-copy-id node3
 
 **步骤六：启动**
 
+​	记得先格式化NameNode`hdfs namenode format`
+
 ​     在节点node1启动hdfs，会把三个几点的对应hdfs都启动起来，可以通过jps查看
 
 ```bash
