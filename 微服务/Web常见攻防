@@ -1,0 +1,164 @@
+## 1.Cross Site Request Forgery（CSRF）
+
+  ### 1.1 名词解释   
+
+**CSRF:**     跨站请求伪造（英语：Cross-site request forgery），也被称为one-click attack或者session riding，通常缩写为CSRF 或者XSRF， 是一种挟制用户在当前已登录的Web应用程序上执行非本意的操作的攻击方法。
+
+**CSRF Token**
+	 服务端为客户端生成令牌，该令牌将用于请求合法性校验，一般通过请求头或请求参数传递到服务端
+**CSRF Token 仓库**
+	 服务端组件，用于从请求加载或生成 CSRF Token。Spring Security 提供了Cookie 和 HttpSession 两种实现。
+**CSRF 请求校验匹配器**
+     服务端组件，用于判断请求是否需要CSRF校验
+
+
+
+### 1.2 防攻逻辑
+
+- 1.利用 CSRF Token 仓库 将 HTTP 请求获取 CSRF Token（该过程 可以理解为 Web 服务端针对当前请求获取 CSRF Token）。
+- 2.通过 CSRF Token 校验请求匹配器 来判断当前请求是否需要 CSRF Token 校验。如果需要的话，执行第3步，否则，跳过校验。
+- 3.先从请求头中获取 CSRF Token 值，如果不存在的话，再向请求参数中 获取。（该过程可以理解为 获取 Web 客户端请求中的 CSRF Token）。
+  - 如果均未获取的话，将会转向错误页面，并且相应头状态码为：403。
+  - 如果 CSRF Token 值 获取到的话，执行第4步。
+- 4.将第1步CSRF Token 仓库 获取的 CSRF Token 与 客户端请求中的 CSRF Token 进行比较。
+  - 如果两值相同的话，说明 CSRF Token 校验通过
+  - 否则，CSRF Token 检验失败，将会转向错误页面，并且相应头状态码为：403。
+
+
+
+### 1.3 相关配置
+
+**“零”配置（默认）**
+
+- Cookie 类型 CSRF Token 仓库
+  - 请求参数名称："_csrf”
+  - 请求头名称："X-XSRF-TOKEN”
+  - cookie名称："XSRF-TOKEN"
+- CSRF Token 校验请求
+  - 所有的POST 方法 
+
+**“按需”配置**
+
+- CSRF Token 仓库
+- CSRF Token 校验请求
+- CSRF Token 自动生成URL
+- CSRF 检验开关
+
+
+
+#### CSRF Token 仓库
+
+- 框架接口：org.springframework.security.web.csrf.CsrfTokenRepository
+- Cookie 类型（默认）
+  - 实现来源：官方实现
+  - 实现类：org.springframework.security.web.csrf.CookieCsrfTokenRepository
+    CSRF Token 存储：客户端，Web浏览器 Cookie
+  - 有效时间：Web浏览器 会话期间
+  - 特别注意：Cookie 方式安全系数相对较低
+
+- HttpSession 类型
+  - 实现来源：官方实现
+  - 实现类：org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository
+  - CSRF Token 存储：服务端，HttpSession（Servlet 容器）
+  - 有效时间：HttpSession 最大不活动时间间隔（#setMaxInactiveInterval(int) ）
+  - 特别注意：Servlet 容器需要支持HttpSession复制（分布式HttpSession）
+
+
+
+##### 1）**Cookie 类型 CSRF Token 仓库**
+
+- 配置
+  - 类型定义
+    -  spring.security.csrf.type = cookie
+  - Cookie 名称
+    -  spring.security.csrf.cookieName = c_csrf
+    - 默认值：XSRF-TOKEN
+  - 请求参数名称
+    - spring.security.csrf.parameterName=p_csrf
+    - 默认值：_csrf
+  - 请求头名称
+    - spring.security.csrf.headerName = h_csrf
+    - 默认值：X-XSRF-TOKEN
+  - 是否仅在HTTP协议下使用
+    - spring.security.csrf.cookieHttpOnly = true
+    - 默认值：false
+
+---
+
+##### 2）HttpSession 类型 CSRF Token 仓库
+配置
+
+- 类型定义
+  - spring.security.csrf.type = session
+- HttpSession 属性名称
+  -  spring.security.csrf.sessionAttributeName=session_attribute_name
+  - 默认值：org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository.CSRF_TOKEN
+- 请求参数名称
+  - spring.security.csrf.parameterName=sp_csrf
+  - 默认值：_csrf
+- 请求头名称
+  - spring.security.csrf.headerName = sh_csrf
+  - 默认值：X-XSRF-TOKEN
+
+
+
+
+
+
+
+## 2. Cross-site scripting（XSS）
+
+ **XSS:**   跨站脚本（英语：Cross-site scripting，通常简称为：XSS）是一种网站应用程序的安全 漏洞攻击，是代码注入的一种。它允许恶意用户将代码注入到网页上，其他用户在观看网页时就 会受到影响。这类攻击通常包含了HTML以及用户端脚本语言。
+
+  	XSS攻击通常指的是通过利用网页开发时留下的漏洞，通过巧妙的方法注入恶意指令代码到网页， 使用户加载并执行攻击者恶意制造的网页程序。这些恶意网页程序通常是JavaScript， 但实际上也可以包括Java，VBScript，ActiveX，Flash或者甚至是普通的HTML。攻击成功后， 攻击者可能得到更高的权限（如执行一些操作）、私密网页内容、会话和cookie等各种内容。
+
+- 双处理手段
+  - 相应头：X-XSS-Protection
+- 模板引擎
+  - Velocity
+  - Thymeleaf	
+
+
+
+“零”配置（默认）
+
+- X-XSS-Protection
+  - 内容：X-XSS-Protection: 1; mode=block
+- 自动装配
+  - Velocity
+  -  Thymeleaf 
+  - 安全组件
+
+“按需”配置
+
+- 变量忽略
+  - 全局级别
+  - 页面级别
+  - 单个级别
+- XSS 开关
+
+
+
+## 3. JSON
+
+​	当Web应用暴露JSON时， JSON 原生的内容可能会被利用而攻击。
+
+**处理手段**
+
+- 多Escape方式
+  - Unicode
+  - HTML 无 &
+  - HTML
+- 多序列化支持
+  - Jackson 1.8+
+  - Jackson 2.6+
+  - FastJSON
+
+## 4. Referer域名校验
+
+
+
+## 5. 重定向域名校验
+
+
+

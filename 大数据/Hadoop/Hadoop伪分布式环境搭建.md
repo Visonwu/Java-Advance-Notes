@@ -1,3 +1,5 @@
+```netstat -natlp```
+
 # 一、Hadoop伪分布式环境配置
 
 相关的配置信息我们都可以通过官网<https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/SingleCluster.html>查看：
