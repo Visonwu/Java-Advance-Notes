@@ -92,6 +92,63 @@
 
 ​	
 
+
+
+## 1.3 多数据源/读写数据源的解决方案
+
+我们先要分析一下SQL 执行经过的流程：
+
+```text
+DAO——Mapper（ORM）——JDBC——代理——数据库服务
+```
+
+### 1）客户端DAO 层
+
+​	第一个就是在我们的客户端的代码，比如DAO 层，在我们连接到某一个数据源之前，我们先根据配置的分片规则，判断需要连接到哪些节点，再建立连接。
+
+Spring 中提供了一个抽象类AbstractRoutingDataSource，可以实现数据源的动态切换
+
+
+
+在DAO 层实现的优势：不需要依赖ORM 框架，即使替换了ORM 框架也不受影响。实现简单（不需要解析SQL 和路由规则），可以灵活地定制。
+
+缺点：不能复用，不能跨语言。
+
+
+
+### 2）ORM 框架层
+
+​		第二个是在框架层，比如我们用MyBatis 连接数据库，也可以指定数据源。我们可以基于MyBatis 插件的拦截机制（拦截query 和update 方法），实现数据源的选择。
+
+例如：https://github.com/colddew/shardbatis
+https://docs.jboss.org/hibernate/stable/shards/reference/en/html_single/
+
+
+
+### 3）驱动层
+
+​		不管是MyBatis 还是Hibernate，还是Spring 的JdbcTemplate，本质上都是对JDBC的封装，所以第三层就是驱动层。比如Sharding-JDBC，就是对JDBC 的对象进行了封装。JDBC 的核心对象：
+
+DataSource：数据源
+
+Connection：数据库连接
+Statement：语句对象
+ResultSet：结果集
+
+那我们只要对这几个对象进行封装或者拦截或者代理，就可以实现分片的操作。
+
+
+
+### 4）代理层
+
+前面三种都是在客户端实现的，也就是说不同的项目都要做同样的改动，不同的编程语言也有不同的实现，所以我们能不能把这种选择数据源和实现路由的逻辑提取出来，做成一个公共的服务给所有的客户端使用呢？
+
+这个就是第四层，代理层。比如Mycat 和Sharding-Proxy，都是属于这一层。
+
+
+
+
+
 # 2.Mycat
 
 参考：	<https://github.com/MyCATApache/Mycat-Server>
@@ -631,3 +688,446 @@ system
 
 ```
 
+
+
+## 3.4 ZK配置
+
+<https://www.cnblogs.com/leeSmall/p/9551038.html>
+
+​		Mycat 也支持ZK 配置（ 用于管理配置和生成全局ID ） ， 执行bin 目录下`init_zk_data.sh`,会自动将zkconf 下的所有配置文件上传到ZK（先拷贝到这个目录)
+
+```text
+cd /usr/local/soft/mycat/conf
+cp *.txt *.xml *.properties zkconf/
+cd /usr/local/soft/mycat/bin
+./init_zk_data.sh
+```
+
+
+
+```text
+启用ZK 配置：
+mycat/conf/myid.properties
+
+
+loadZk=true
+zkURL=127.0.0.1:2181
+clusterId=010
+myid=01001
+clusterSize=1
+clusterNodes=mycat_gp_01
+#server booster ; booster install on db same server,will reset all minCon to 2
+type=server
+boosterDataHosts=dataHost1
+```
+
+**注意**：如果执行`init_zk_data.sh` 脚本报错的话，代表未写入成功，此时不要启用ZK配置并重启，否则本地文件会被覆盖。
+
+启动时如果loadzk=true 启动时，会自动从zk 下载配置文件覆盖本地配置。
+在这种情况下如果修改配置，需要先修改conf 目录的配置，copy 到zkconf，再执行上传
+
+
+
+## 3.5 MyCat命令使用
+
+进入mycat/bin 目录（注意要先启动物理数据库）：
+
+```bash
+#操作命令
+
+启动		 ./mycat start
+停止		 ./mycat stop
+重启		 ./mycat restart
+查看状态	./mycat status
+前台运行	./mycat console
+
+#连接：这里必须要写ip，本地也要用ip，8066表示mycat的连接端口，catmall表示逻辑库
+mysql -uroot -p123456 -h 192.168.8.151 -P8066 catmall
+```
+
+
+
+# 4.Mycat全局ID
+
+​		Mycat 全局序列实现方式主要有4 种：本地文件方式、数据库方式、本地时间戳算法、ZK。也可以自定义业务序列。
+
+注意获取全局ID 的前缀都是：`MYCATSEQ_`
+
+## 4.1 文件方式
+
+配置文件server.xml sequnceHandlerType 值：
+
+```xml
+##	0 文件; 1 数据库; 2 本地时间戳; 3 ZK
+<property name="sequnceHandlerType">0</property>
+```
+
+文件方式，配置conf/sequence_conf.properties
+
+```properties
+CUSTOMER.HISIDS=
+CUSTOMER.MINID=10000001
+CUSTOMER.MAXID=20000000
+CUSTOMER.CURID=10000001
+```
+
+
+
+**语法：**
+
+```bash
+select next value for MYCATSEQ_CUSTOMER
+
+INSERT INTO `customer` (`id`, `name`) VALUES (next value for MYCATSEQ_CUSTOMER, 'vison');
+```
+
+
+
+**优点**：本地加载，读取速度较快。
+**缺点**：当Mycat 重新发布后，配置文件中的sequence 需要替换。Mycat 不能做集群部署。
+
+
+
+## 4.2 数据库方式
+
+```properties
+<property name="sequnceHandlerType">1</property>
+```
+
+配置： `sequence_db_conf.properties`
+把这张表创建在节点dn1
+
+```properties
+#sequence stored in datanode
+GLOBAL=dn1
+CUSTOMER=dn1
+```
+
+在dn1数据库节点上创建MYCAT_SEQUENCE 表：
+
+```sql
+DROP TABLE IF EXISTS MYCAT_SEQUENCE;
+CREATE TABLE MYCAT_SEQUENCE (
+name VARCHAR(50) NOT NULL,
+current_value INT NOT NULL,
+increment INT NOT NULL DEFAULT 1,
+remark varchar(100),
+PRIMARY KEY(name)) ENGINE=InnoDB;
+```
+
+注：可以在schema.xml 配置文件中配置这张表，供外部访问。
+
+```xml
+<table name="mycat_sequence" dataNode="dn1" autoIncrement="true" primaryKey="id"></table>
+```
+
+创建存储过程——获取当前sequence 的值:
+
+```sql
+DROP FUNCTION IF EXISTS `mycat_seq_currval`;
+DELIMITER ;;
+CREATE DEFINER=`root`@`%` FUNCTION `mycat_seq_currval`(seq_name VARCHAR(50)) RETURNS varchar(64)
+CHARSET latin1
+DETERMINISTIC
+BEGIN
+DECLARE retval VARCHAR(64);
+SET retval="-999999999,null";
+SELECT concat(CAST(current_value AS CHAR),",",CAST(increment AS CHAR) ) INTO retval FROM
+MYCAT_SEQUENCE WHERE name = seq_name;
+RETURN retval ;
+END
+;;
+DELIMITER ;
+```
+
+创建存储过程，获取下一个sequence
+
+```sql
+DROP FUNCTION IF EXISTS `mycat_seq_nextval`;
+DELIMITER ;;
+CREATE DEFINER=`root`@`%` FUNCTION `mycat_seq_nextval`(seq_name VARCHAR(50)) RETURNS varchar(64)
+CHARSET latin1
+DETERMINISTIC
+BEGIN
+UPDATE MYCAT_SEQUENCE
+SET current_value = current_value + increment WHERE name = seq_name;
+RETURN mycat_seq_currval(seq_name);
+END
+;;
+DELIMITER ;
+```
+
+创建存储过程，设置sequence
+
+```sql
+DROP FUNCTION IF EXISTS `mycat_seq_setval`;
+DELIMITER ;;
+CREATE DEFINER=`root`@`%` FUNCTION `mycat_seq_setval`(seq_name VARCHAR(50), value INTEGER)
+RETURNS varchar(64) CHARSET latin1
+DETERMINISTIC
+BEGIN
+UPDATE MYCAT_SEQUENCE
+SET current_value = value
+WHERE name = seq_name;
+RETURN mycat_seq_currval(seq_name);
+END
+;;
+DELIMITER ;
+```
+
+
+
+插入记录
+
+```sql
+INSERT INTO MYCAT_SEQUENCE(name,current_value,increment,remark) VALUES ('GLOBAL', 1, 100,'');
+INSERT INTO MYCAT_SEQUENCE(name,current_value,increment,remark) VALUES ('ORDERS', 1, 100,'订单表使
+用');
+```
+
+
+
+## 4.3 本地时间戳方式
+​	ID= 64 位二进制(42(毫秒)+5(机器ID)+5(业务编码)+12(重复累加) ，长度为18 位
+
+```xml
+<property name="sequnceHandlerType">2</property>
+```
+
+配置文件sequence_time_conf.properties
+
+```properties
+#sequence depend on TIME
+WORKID=01
+DATAACENTERID=01
+```
+
+验证：`select next value for MYCATSEQ_GLOBAL`
+
+
+
+## 4.4 ZK方式
+
+修改conf/myid.properties
+		设置loadZk=true（启动时会从ZK 加载配置，一定要注意备份配置文件，并且先用bin/init_zk_data.sh,把配置文件写入到ZK）
+
+```properties
+<property name="sequnceHandlerType">3</property>
+```
+
+配置文件：sequence_distributed_conf.properties
+
+```properties
+# 代表使用zk
+INSTANCEID=ZK
+# 与myid.properties 中的CLUSTERID 设置的值相同
+CLUSTERID=010
+```
+
+复制配置文件
+
+```bash
+cd /usr/local/soft/mycat/conf
+cp *.txt *.xml *.properties zkconf/
+chown -R zkconf/
+cd /usr/local/soft/mycat/bin
+./init_zk_data.sh
+```
+
+验证：`select next value for MYCATSEQ_GLOBAL`
+
+
+## 4.5 全局ID的 使用
+​		在schema.xml 的table 标签上配置autoIncrement="true"，不需要获取和指定序列的情况下，就可以使用全局ID 了。
+
+
+
+# 5.Mycat的监控和日志
+
+## 5.1 命令行监控
+
+​		连接到管理端口9066，注意必须要带IP
+
+```bash
+mysql -uroot -h127.0.0.1 -p123456 -P9066
+```
+
+全部命令：
+
+```bash
+mysql>show @@help;
+
+命令						作用
+show @@server 			查看服务器状态，包括占用内存等
+show @@database 		查看数据库
+show @@datanode 		查看数据节点
+show @@datasource 		查看数据源
+show @@connection		该命令用于获取Mycat 的前端连接状态，即应用与mycat 的连接
+show @@backend 			查看后端连接状态
+show @@cache			查看缓存使用情况
+SQLRouteCache：sql 		路由缓存。
+TableID2DataNodeCache	 缓存表主键与分片对应关系。
+ER_SQL2PARENTID 		 缓存ER 分片中子表与父表关系
+reload @@config			 重新加载基本配置，使用这个命令时mycat服务不可用
+show @@sysparam 		参看参数
+show @@sql.high 		执行频率高的SQL
+show @@sql.slow			慢SQL;设置慢SQL 的命令：reload @@sqlslow=5 ;
+```
+
+## 5.2 命令行监控mycatweb 监控
+
+https://github.com/MyCATApache/Mycat-download/tree/master/mycat-web-1.0
+
+Mycat-eye 是mycat 提供的一个监控工具，它依赖于ZK。
+本地必须要运行一个ZK，必须先启动ZK。
+参考：https://gper.club/articles/7e7e7f7ff7g59gc3g64
+
+下载mycat-web
+
+```bash
+cd /usr/local/soft
+wget http://dl.mycat.io/mycat-web-1.0/Mycat-web-1.0-SNAPSHOT-20170102153329-linux.tar.gz
+tar -xzvf Mycat-web-1.0-SNAPSHOT-20170102153329-linux.tar.gz
+```
+
+启动mycat-web
+
+```bash
+cd mycat-web
+nohup ./start.sh &
+```
+
+访问端口8082：http://192.168.8.151:8082/mycat/
+
+mycat server.xml 配置
+
+```xml
+<!-- 1 为开启实时统计、0 为关闭-->
+<property name="useSqlStat">1</property>
+```
+
+## 5.3 日志
+
+
+​	log4j 的level 配置要改成debug
+
+
+
+	**wrapper 日志**：mycat 启动，停止，添加为服务等都会记录到此日志文件，如果系统环境配置错误或缺少配置时，导致Mycat 无法启动，可以通过查看wrapper.log 定位具体错误原因。
+
+
+
+​	**mycat.log** 为mycat 主要日志文件，记录了启动时分配的相关buffer 信息，数据源连接信息，连接池，动态类加载信息等等。在conf/log4j2.xml 文件中进行相关配置，如保留个数，大小，字符集，日志文件大小等。
+
+
+
+
+
+# 6. Mycat 高可用
+
+​	目前Mycat 没有实现对多Mycat 集群的支持，可以暂时使用HAProxy 来做负载
+思路：HAProxy 对Mycat 进行负载。Keepalived 实现VIP。
+
+
+
+# 7. Mycat的注解
+
+​	Mycat 作为一个中间件，有很多自身不支持的SQL 语句，比如存储过程，但是这些语句在实际的数据库节点上是可以执行的。有没有办法让Mycat 做一层透明的代理转发，直接找到目标数据节点去执行这些SQL 语句呢？
+
+​	那我们必须要有一种方式告诉Mycat 应该在哪个节点上执行。这个就是Mycat 的注解。我们在需要执行的SQL 语句前面加上一段代码，帮助Mycat 找到我们的目标节点。
+
+
+
+##  7.1 注解的用法
+
+**注解的形式是:**
+		`/*!mycat: sql=注解SQL 语句*/`
+**注解的使用方式是:**
+	`/*!mycat: sql=注解SQL 语句*/ 真正执行的SQL`
+
+使用时将= 号后的"注解SQL 语句" 替换为需要的SQL 语句即可。
+使用注解有一些限制，或者注意的地方：
+
+```bash
+原始SQL:注解SQL
+
+select:
+	如果需要确定分片，则使用能确定分片的注解，比如/*!mycat: sql=select * from users where
+user_id=1*/
+	如果要在所有分片上执行则可以不加能确定分片的条件
+
+insert:
+	使用insert 的表作为注解SQL，必须能确定到某个分片;原始SQL 插入的字段必须包括分片字段
+	非分片表（只在某个节点上）：必须能确定到某个分片
+
+delete: 使用delete 的表作为注解SQL
+
+update: 使用update 的表作为注解SQL
+```
+
+​		使用注解并不额外增加MyCat 的执行时间；从解析复杂度以及性能考虑，注解SQL 应尽量简单，因为它只是用来做路由的。
+
+
+
+## 7.2 注解的例子
+
+**1) 创建表或存储过程**
+
+创建表或存储过程  customer.id=1 全部路由到节点dn1
+
+```bash
+-- 存储过程
+/*!mycat: sql=select * from customer where id =1 */ CREATE PROCEDURE test_proc() BEGIN END ;
+-- 表
+/*!mycat: sql=select * from customer where id =1 */ CREATE TABLE test2(id INT);
+```
+
+
+
+**2) 特殊语句自定义分片**
+
+Mycat 本身不支持insert select，通过注解支持
+
+```sql
+/*!mycat: sql=select * from customer where id =1 */ INSERT INTO test2(id) SELECT id FROM order_detail;
+```
+
+
+
+**3) 多表ShareJoin**
+
+```sql
+/*!mycat:catlet=io.mycat.catlets.ShareJoin */
+select a.order_id,b.goods_id from order_info a, order_detail b where a.order_id = b.order_id;
+```
+
+
+
+**4) 读写分离**
+
+​		读写分离: 配置Mycat 读写分离后，默认查询都会从读节点获取数据，但是有些场景需要获取实时数据，如果从读节点获取数据可能因延时而无法实现实时，Mycat 支持通过注解/*balance*/ 来强制从写节点（write host）查询数据。
+
+```sql
+/*balance*/ select a.* from customer a where a.id=6666;
+```
+
+**5)读写分离数据库选择**
+
+```sql
+/*!mycat: db_type=master */ select * from customer;
+/*!mycat: db_type=slave */ select * from customer;
+/*#mycat: db_type=master */ select * from customer;
+/*#mycat: db_type=slave */ select * from customer;
+
+注解支持的'! '不被mysql 单库兼容
+注解支持的'#'不被MyBatis 兼容
+随着Mycat 的开发，更多的新功能正在加入。
+```
+
+
+
+## 7.3 注解原理
+
+​	Mycat 在执行SQL 之前会先解析SQL 语句，在获得分片信息后再到对应的物理节点上执行。如果SQL 语句无法解析，则不能被执行。如果语句中有注解，则会先解析注解的内容获得分片信息，再把真正需要执行的SQL 语句发送对对应的物理节点上。
+
+​		所以我们在使用主机的时候，应该清楚地知道目标SQL 应该在哪个节点上执行，注解的SQL 也指向这个分片，这样才能使用。如果注解没有使用正确的条件，会导致原始SQL 被发送到所有的节点上执行，造成数据错误
