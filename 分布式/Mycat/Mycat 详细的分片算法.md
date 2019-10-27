@@ -196,3 +196,85 @@ type默认值为0（0表示Integer，非零表示String）
 注意：
 一个实际的数据库节点被映射为这么多虚拟节点，默认是160倍，也就是虚拟节点数是物理节点数的160倍
 
+
+
+# 三、综合性分片
+
+## 1. 范围求模分片
+
+​	先进行范围分片计算出分片组，组内再求模。
+**优点：**可以避免扩容时的数据迁移，又可以一定程度上避免范围分片的热点问题
+分片组内使用求模可以保证组内数据比较均匀，分片组之间是范围分片可以兼顾范围查询。
+
+最好事先规划好分片的数量，数据扩容时按分片组扩容，则原有分片组的数据不需要迁移。
+由于分片组内数据比较均匀，所以分片组内可以避免热点数据问题。
+
+```xml
+<function name="rang-mod" class=“io.mycat.route.function.PartitionByRangeMod"> 
+	<property name="mapFile">partition-range-mod.txt</property>
+ 	<property name="defaultNode">32</property> 
+</function>
+```
+
+partition-range-mod.txt
+以下配置一个范围代表一个分片组，= 号后面的数字代表该分片组所拥有的分片的数量。
+
+```text
+0-200M=5 	//代表有5个分片节点
+200M-400M=6
+400M-600M=6
+600M-800M=8
+800M-1000M=7
+```
+
+
+
+
+
+## 2.取模范围约束分片
+
+​	对指定分片列进行取模后再由配置决定数据的节点分布。
+
+```xml
+<function name="sharding-by-pattern" class=“io.mycat.route.function.PartitionByPattern">
+ 	<property name="patternValue">256</property>
+ 	<property name="defaultNode">2</property> 
+	<property name="mapFile">partition-pattern.txt</property> 
+ </function>
+```
+
+- patternValue 即求模基数，
+
+- defaoultNode 默认节点
+
+- partition-pattern.txt配置
+
+  ```xml
+  1-32=0
+  33-64=1
+  65-96=2
+  97-128=3
+  128-256=4
+  ```
+
+  配置文件中，1-32 即代表id%256后分布的范围。
+  如果id非数字，则会分配在defaultNode 默认节点
+
+
+
+# 四、自定义分片
+
+​		自定义分片：规则： extends AbstractPartitionAlgorithm implements   RuleAlgorithm。
+
+重新定义，然后打包使用自己的mycat 的jar包
+
+
+
+# 五、分片场景
+
+- 离散分片场景：
+  - 数据特点：活跃的数据热度较高规模可以预期，增长量比较稳定
+
+- 连续分片场景
+  - 数据特点：活跃的数据为历史数据，热度要求不高。规模可以预期，增长量比较稳定.
+    优势可定时清理或者迁移数据

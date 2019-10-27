@@ -1028,6 +1028,16 @@ mycat server.xml 配置
 ​	目前Mycat 没有实现对多Mycat 集群的支持，可以暂时使用HAProxy 来做负载
 思路：HAProxy 对Mycat 进行负载。Keepalived 实现VIP。
 
+**方式一：**
+
+![K3EeAO.png](https://s2.ax1x.com/2019/10/22/K3EeAO.png)
+
+
+
+**方式二：**
+
+![K3EM3d.png](https://s2.ax1x.com/2019/10/22/K3EM3d.png)
+
 
 
 # 7. Mycat的注解
@@ -1131,3 +1141,135 @@ select a.order_id,b.goods_id from order_info a, order_detail b where a.order_id 
 ​	Mycat 在执行SQL 之前会先解析SQL 语句，在获得分片信息后再到对应的物理节点上执行。如果SQL 语句无法解析，则不能被执行。如果语句中有注解，则会先解析注解的内容获得分片信息，再把真正需要执行的SQL 语句发送对对应的物理节点上。
 
 ​		所以我们在使用主机的时候，应该清楚地知道目标SQL 应该在哪个节点上执行，注解的SQL 也指向这个分片，这样才能使用。如果注解没有使用正确的条件，会导致原始SQL 被发送到所有的节点上执行，造成数据错误
+
+
+
+# 8.离线扩容
+
+​		当我们规划了数据分片，而数据已经超过了单个节点的存储上线，或者需要下线节点的时候，就需要对数据重新分片。
+
+
+
+## 8.1 Mycat自带工具
+
+**准备工作：**
+
+1、mycat 所在环境安装mysql 客户端程序。
+2、mycat 的lib 目录下添加mysql 的jdbc 驱动包。
+3、对扩容缩容的表所有节点数据进行备份，以便迁移失败后的数据恢复。
+
+**修改动作：**
+
+编辑newSchema.xml 和 newRule.xml
+配置conf/migrateTables.properties
+修改bin/dataMigrate.sh，执行dataMigrate.sh
+
+注意前方坑位【坑坑坑】：
+1，一旦执行数据是不可逆的
+2，只能支持分片表的扩缩容  
+3，分片规则必须一致，只能节点扩或者缩
+
+
+
+**案例：**
+
+```text
+这里使用的取模分片表sharding-by-mod
+迁移前数据:
+    dn0 3,6
+    dn1 1,4
+    dn3 2,5
+迁移后数据:
+    dn0 2,4,6
+    dn1 1,3,5
+```
+
+- 1、复制schema.xml、rule.xml 并重命名为newSchema.xml、newRule.xml 放于conf 目录下。
+- 2、修改newSchema.xml 和newRule.xml 配置文件为扩容缩容后的mycat配置参数（表的节点数、数据源、路由规则）。
+  - 注意：只有节点变化的表才会进行迁移。仅分片配置变化不会迁移。
+
+```xml
+#newSchema.xml
+<table name="sharding_by_mod" dataNode="dn1,dn2,dn3" rule="qs-sharding-by-mod" />
+改为：
+<table name="sharding_by_mod" dataNode="dn1,dn2" rule="qs-sharding-by-mod" />
+
+
+#newRule.xml 修改count 个数
+<function name="qs-sharding-by-mod-long" class="io.mycat.route.function.PartitionByMod">
+	<property name="count">2</property>
+</function>
+```
+
+- 3、修改conf 目录下的migrateTables.properties 配置文件，告诉工具哪些表；需要进行扩容或缩容,没有出现在此配置文件的schema 表不会进行数据迁移，格式：
+
+  - 1）不迁移的表，不要修改dn 个数，否则会报错。
+
+  - 2）ER 表，因为只有主表有分片规则，子表不会迁移。
+
+  - ```properties
+    text_db=sharding-by-mod
+    ```
+
+- 4、dataMigrate.sh 中这个必须要配置
+  通过命令"find / -name mysqldump" 查找mysqldump 路径为
+  "/usr/bin/mysqldump"，指定#mysql bin 路径为"/usr/bin/"
+
+  - ```properties
+    #mysql bin 路径
+    RUN_CMD="$RUN_CMD -mysqlBin= /usr/bin/"
+    ```
+
+- 5、停止mycat 服务
+
+- 6、执行执行bin/ dataMigrate.sh 脚本
+          注意：必须要配置Java 环境变量，不能用openjdk
+
+- 7 、脚本执行完成， 如果最后的数据迁移验证通过， 就可以将之前的newSchema.xml 和newRule.xml 替换之前的schema.xml 和rule.xml 文件，并重启mycat 即可。
+
+
+
+注意事项：
+1）保证分片表迁移数据前后路由规则一致（取模——取模）。
+2）保证分片表迁移数据前后分片字段一致。
+3）全局表将被忽略。
+4）不要将非分片表配置到migrateTables.properties 文件中。
+5）暂时只支持分片表使用MySQL 作为数据源的扩容缩容。
+		migrate 限制比较多，还可以使用mysqldump。
+
+
+
+## 8.2 MysqlDump方式
+
+​		系统第一次上线，把单张表迁移到Mycat，也可以用mysqldump。
+
+**mysql导出：**
+
+```bash
+root >mysqldump -uroot -p123456 -h127.0.0.1 -P3306 -c -t --skip-extended-insert gpcat > mysql-1017.sql
+
+-c 代表带列名
+-t 代表只要数据，不要建表语句
+--skip-extended-insert 代表生成多行insert（mycat childtable 不支持多行插入
+
+//其他导入方式：
+load data local infile '/mycat/customer.txt' into table customer;
+source sql '/mycat/customer.sql';
+```
+
+**Mycat 导入：**
+
+```bash
+root >mysql -uroot -p123456 -h127.0.0.1 -P8066 catmall < mysql-1017.sql
+```
+
+
+
+# 9. 调试入口
+
+**debug 方式启动main 方法**
+	`Mycat-Server-1.6.5-RELEASE\src\main\java\io\mycat\MycatStartup.java`
+**连接入口：**
+	`io.mycat.net.NIOAcceptor#accept`
+**SQL 入口：**
+	`io.mycat.server.ServerQueryHandler#query`
