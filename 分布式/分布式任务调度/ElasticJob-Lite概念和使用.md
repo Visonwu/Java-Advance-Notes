@@ -279,6 +279,8 @@ public class ElasticRegCenterConfig {
 
 ## 3.5 作业三级配置
 
+​	设置其他任务类型和Java单机版类似
+
 Core——Type——Lite
 `return LiteJobConfiguration.newBuilder(new SimpleJobConfiguration(JobCoreConfiguration.newBuilder(`
 
@@ -289,7 +291,7 @@ public class ElasticJobConfig {
     @Autowired
     private ZookeeperRegistryCenter regCenter;
 	
-    @Bean(initMethod = "init")
+    @Bean(initMethod = "init") //这里是简单任务类型
     public JobScheduler simpleJobScheduler(final SimpleJobDemo simpleJob,
         @Value("${visonJob.cron}") final String cron,
         @Value("${visonJob.shardingTotalCount}") final int shardingTotalCount,
@@ -311,19 +313,94 @@ public class ElasticJobConfig {
 }                                                                                    
 ```
 
-其他任务类型和Java单机版类似
+
+
+# 4.分片策略
+
+## 4.1  分片项与分片参数
+
+任务分片，是为了实现把一个任务拆分成多个子任务，在不同的ejob 示例上执行。
+
+​	例如：100W 条数据，在配置文件中指定分成10 个子任务（分片项），这10 个子任务再按照一定的规则分配到5 个实际运行的服务器上执行。除了直接用分片项ShardingItem获取分片任务之外，还可以用item 对应的parameter 获取任务。
 
 
 
+```java
+//这里配置四个分片，所以参数也要对应四个，在job任务接口中可以获取到相应参数
+JobCoreConfiguration coreConfig = JobCoreConfiguration
+			.newBuilder("MySimpleJob", "0/2 * * * * ?",4)
+    		.shardingItemParameters("0=RDP, 1=CORE, 2=SIMS, 3=ECIF")
+    		.build();
+```
 
 
 
+**注意：**分片个数和分片参数要一一对应。通常把分片项设置得比E-Job 服务器个数大一些，比如3 台服务器，分成9 片，这样如果有服务器宕机，分片还可以相对均匀。
 
 
 
+## 4.2 分片策略
+
+​		参考官网：http://elasticjob.io/docs/elastic-job-lite/02-guide/job-sharding-strategy/
+
+分片项如何分配到服务器？这个跟分片策略有关
+
+| 策略                                  | 描述                                                  | 具体规则                                                     |
+| ------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------ |
+| AverageAllocationJobShardingStrategy  | 基于平均分配算法的分片策略，也是默认的分片策略。      | 如果分片不能整除，则不能整除的多余分片将依次追加到序号小的服务器。如：<br/> 如果有3 台服务器，分成9 片，则每台服务器分到的分片是： 1=[0,1,2], 2=[3,4,5],3=[6,7,8]<br/><br/> 如果有3 台服务器，分成8 片，则每台服务器分到的分片是：1=[0,1,6], 2=[2,3,7], 3=[4,5]<br/><br/> 如果有3 台服务器，分成10 片，则每台服务器分到的分片是： 1=[0,1,2,9], 2=[3,4,5],3=[6,7,8] |
+| OdevitySortByNameJobShardingStrategy  | 根据作业名的哈希值奇偶数决定IP 升降序算法的分片策略。 | 根据作业名的哈希值奇偶数决定IP 升降序算法的分片策略。<br/> 作业名的哈希值为奇数则IP 升序。<br/> 作业名的哈希值为偶数则IP 降序。<br/>用于不同的作业平均分配负载至不同的服务器。 |
+| RotateServerByNameJobShardingStrategy | 根据作业名的哈希值对服务器列表进行轮转的分片策略。    |                                                              |
+| 自定义分片策略                        |                                                       | 实现JobShardingStrategy 接口并实现sharding 方法，接口方法参数为作业服务器IP 列表和分片策略选项，分片策略选项包括作业名称，分片总数以及分片序列号和个性化参数对照表，可以根据需求定制化自己的分片策略。 |
+
+​		`AverageAllocationJobShardingStrategy` 的缺点是，一旦分片数小于作业服务器数，作业将永远分配至IP 地址靠前的服务器，导致IP 地址靠后的服务器空闲。而`OdevitySortByNameJobShardingStrategy `则可以根据作业名称重新分配服务器负载.
+
+java使用：
+
+```java
+String jobShardingStrategyClass = AverageAllocationJobShardingStrategy.class.getCanonicalName();
+
+LiteJobConfiguration simpleJobRootConfig =
+                LiteJobConfiguration
+                    .newBuilder(simpleJobConfig)
+                    .jobShardingStrategyClass(jobShardingStrategyClass)
+                    .build();
+```
+
+## 4.3 分片方案
+
+获取到分片项shardingItem 之后，怎么对数据进行分片？
+
+### 1） 方案一
+
+​	**对业务主键进行取模**，获取余数等于分片项的数据
+
+举例：获取到的sharding item 是0,1；在SQL 中加入过滤条件：where mod(id, 4) in (1, 2)。
+
+这种方式的缺点：会导致索引失效，查询数据时会全表扫描。
+解决方案：在查询条件中在增加一个索引条件进行过滤。
 
 
-# 4. ZK 注册中心数据结构
+
+### 2）方案二
+
+​		**在表中增加一个字段**；根据分片数生成一个mod 值。取模的基数要大于机器数。否则在增加机器后，会导致机器空闲。例如取模基数是2，而服务器有5 台，那么有三台服务器永远空闲。而取模基数是10，生成10 个shardingItem，可以分配到5 台服务器。当然，取模基数也可以调整。
+
+
+
+### 3）方案三
+
+​	如果从业务层面，可以用ShardingParamter 进行分片。
+
+例如0=RDP, 1=CORE, 2=SIMS, 3=ECIF
+
+```sql
+List<users> = SELECT * FROM user WHERE status = 0 AND SYSTEM_ID =
+'RDP' limit 0, 100。
+```
+
+
+
+# 5. ZK 注册中心数据结构
 
 ​	一个任务一个二级节点。
 这里面有些节点是临时节点，只有任务运行的时候才能看到。
@@ -374,9 +451,9 @@ LiteJobConfiguration simpleJobRootConfig = LiteJobConfiguration.newBuilder(simpl
 
 
 
-# 5. 运维平台
+# 6. 运维平台
 
-## 5.1 下载解压运行
+## 6.1 下载解压运行
 
 ​		git 下载源码https://github.com/elasticjob/elastic-job-lite
 
@@ -386,7 +463,7 @@ LiteJobConfiguration simpleJobRootConfig = LiteJobConfiguration.newBuilder(simpl
 
 
 
-## 5.2 添加ZK 注册中心
+## 6.2 添加ZK 注册中心
 
 ​	第一步，添加注册中心，输入ZK 地址和命名空间，并连接。
 
@@ -394,7 +471,7 @@ LiteJobConfiguration simpleJobRootConfig = LiteJobConfiguration.newBuilder(simpl
 
 
 
-## 5.4 事件追踪
+## 6.4 事件追踪
 
 ​	http://elasticjob.io/docs/elastic-job-lite/02-guide/event-trace/
 
@@ -417,3 +494,12 @@ new JobScheduler(regCenter, simpleJobRootConfig, jobEventConfig).init();
 ​		事件追踪的event_trace_rdb_url 属性对应库自动创建JOB_EXECUTION_LOG 和JOB_STATUS_TRACE_LOG 两张表以及若干索引。
 
 需要在运维平台中添加数据源信息，并且连接。
+
+
+
+
+
+# 7.Elastic-job-starter
+
+Git 上有一个现成的实现：https://github.com/TFdream/elasticjob-spring-boot-starter
+工程：elasticjob-spring-boot-starter
