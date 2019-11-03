@@ -11,11 +11,15 @@
 
 ## 1.2 Docker和传统虚拟机差异
 
-​	虚拟化技术就是**虚拟了整套环境**
+​	虚拟化技术就是**虚拟了整套环境**，一个虚拟机可能并用不了多少内存或者硬件资源，但是我们在创建当前的虚拟机的时候会分配固定的i资源，造成资源浪费。
 
 - 缺点：资源占用多、启动慢
 
-具体差异参考参考官网：<https://www.docker.com/resources/what-container>
+具体差异参考参考官网：<https://www.docker.com/resources/what-container>;
+
+下面这个图中Insfrastructure和Hypervisor钟检还是有一个Host Operation System；
+
+启动Docker的Docker Engine。。
 
 ![dockerVSVirtual](//wx4.sinaimg.cn/mw690/b8a27c2fgy1g3es0agng0j216g0gzn01.jpg)
 
@@ -66,25 +70,38 @@
 ​	可以查看官网的安装方式	
 
 ```bash
-1.sudo yum install -y yum-utils \
-device-mapper-persistent-data \
-lvm2
+#先 卸载之前的docker
+    sudo yum remove docker \
+        docker-client \
+        docker-client-latest \
+        docker-common \
+        docker-latest \
+        docker-latest-logrotate \
+        docker-logrotate \
+        docker-engine
 
-2.sudo yum-config-manager \
---add-repo \
-https://download.docker.com/linux/centos/docker-ce.repo
+1.安装必要的依赖
+	sudo yum install -y yum-utils \
+        device-mapper-persistent-data \
+        lvm2
+
+2.设置docker仓库
+	sudo yum-config-manager \
+        --add-repo \
+        https://download.docker.com/linux/centos/docker-ce.repo
 
 #使用阿里镜像
-sudo yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+	sudo yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
 
-#更行yum缓存
-2.1 sudo yum makecache fast 
 
-3.sudo yum -y install docker-ce
+3.安装docker
+	sudo yum install -y docker-ce docker-ce-cli containerd.io
 
-4.sudo systemctl start docker
+4.启动docker
+	sudo systemctl start docker && sudo systemctl enable docker
 
 5.验证：docker version
+	sudo docker run hello-world
 ```
 
 ```bash
@@ -93,5 +110,19 @@ vi /etc/docker/daemon.json ：这个文件添加镜像地址，没有这个文�
 {
   "registry-mirrors": ["https://5i7mumsf.mirror.aliyuncs.com"]
 }
+```
+
+
+
+# 3.Docker一般体验
+
+```bash
+01 创建tomcat容器
+    docker pull tomcat
+    docker run -d --name my-tomcat -p 9090:8080 tomcat
+02 创建mysql容器
+    docker run -d --name my-mysql -p 3301:3306 -e MYSQL_ROOT_PASSWORD=123456 -- privileged mysql:5.7
+03 进入到容器里面
+    docker exec -it containerid /bin/bash
 ```
 

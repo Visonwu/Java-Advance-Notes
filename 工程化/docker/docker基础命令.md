@@ -25,8 +25,11 @@
 | docker images                                           | -a 列出所有的镜像；<br/>-q 只显示镜像的ID;<br/>--digest 显示摘要信息；<br/>--no-trunc 显示没有去掉的信息 |                                                              |
 | docker search 镜像名                                    | 搜索仓库中的镜像;<br/>-s 数字 ： 大于stars 的镜像;<br/>      | docker search -s 30 nginx  <br>: 表示获取start 大于30的nginx |
 | docker pull  镜像名                                     | 获取仓库的镜像，本地没有就从仓库中下载                       | docker pull tomcat                                           |
+| docker push                                             |                                                              |                                                              |
 | docker rmi 镜像id                                       | docker rmi -f 镜像名 : 删除单个镜像；<br/>docker rmi 镜像名2：tag1 镜像名2：tag2  : 删除多个镜像;<br/>docker rmi -f $(docker images -q)  : 删除所有的镜像 |                                                              |
 | docker commit -m="" -a="作者" 容器ID 目标镜像名：标签名 | 用已存在的容器副本生成新的镜像                               |                                                              |
+
+
 
 
 
