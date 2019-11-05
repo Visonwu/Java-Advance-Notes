@@ -253,13 +253,20 @@ brctl show
 
 然后容器就可以使用自己能看到的eth0虚拟网卡连接其他容器和访问外部网络。
 
+docker0 这种网络连接方法我们称之为Bridge；bridge也是docker中默认的网络模式；
 
+## 2.2 容器网络详细介绍
 
-## 2.2 容器网络相关介绍
+### 2.2.1 docker中的网络模式
 
-docker这种网络连接方法我们称之为Bridge；bridge也是docker中默认的网络模式，其实也可以通过命令
+可以在docker运行的时候通过--net参数指定容器的网络配置，可选有bridge、host、container 、none
 
-1）查看docker中的网络模式：
+- --net=bridge  : 默认值，在Docker网桥上为容器创建新的网格栈
+- --net= host   :告诉Docker不要将容器网络放到隔离的命令空间中，即不要容器化容器内的网络。辞职使用本地主机的网络，拥有本地主机接口的访问权限。。这个对于本地主机较为危险。需要小心
+- --net=container  :让Docker将新建容器的进程放到一个已存在容器的网络栈中，新容器进程有自己的文件系统、进程列表和资源限制，但和已存在的容器共享IP地址和端口等网络资源，亮这个直接通过lo环回接口通信
+- --net=none :让Docker将所有新容器放到隔离的网络栈中，但是不进行网络配置，由用户自己配置。完全隔离，目前没有看到应用实践
+
+**1）查看docker中的网络模式**
 
 ```shell
 # 查看网络模式；默认有 brige，host，null
@@ -268,7 +275,9 @@ docker network ls
 
 ```
 
-2）检查bridge模式：
+**2）检查网络模式，**
+
+​	查看其他host类似 docker network inspect host
 
 ```shell
 docker network inspect bridge
@@ -277,23 +286,97 @@ docker network inspect bridge
 
 
 
+### 2.2.2 docker用新建的network创建应用
+
+(1)创建一个network，类型为bridge,默认是bridge
+
+```bash
+docker network create tomcat-net
+或者
+docker network create --subnet=172.18.0.0/24 tomcat-net
+```
+
+(2) 查看自己创建得network
+
+```bash
+docker network ls  #可以查看多了一个tomcat-net网络
+
+docker network inspect tomcat-net # 查看tomcat-net详情信息，包含子网信息和网关信息
+```
+
+(3)创建tomcat的容器，指定相应的网络tomcat-net
+
+```bash
+# --network 只当对应的网络
+docker run -d --name custom-net-tomcat --network tomcat-net tomcat
+```
+
+(4)查看custom-net-tomcat的网络信息
+
+```bash
+docker exec -it custom-net-tomcat ip a
+```
+
+(5)查看网卡信息
+
+```bash
+ip a
+```
+
+(6)查看网卡接口
+
+```bash
+brctl show
+```
+
+(7)如果本机默认启动一个tomcat0，会发现通过本机的tomcat0访问自定义网络中的应用无法ping通，原因是他们没有在同一个网络中；
+
+此时如果主机中的tomcat0能够连接tomcat-net网络的化，那么就可以ping通tomcat-net里面的应用了
+
+```bash
+# 将tomcat01也设置到tomcat-net网络中来；
+# 查看tomcat-net网络，可以发现tomcat01这个容器也在其中
+# 再次查看tomcat0的网路，发现tomcat01多了一个网卡信息及对应ip地址
+docker network connect tomcat-net tomcat01
+```
+
+(8) 此时进入到tomcat01或者custom-net-tomcat中，不仅可以通过ip地址ping通，而且可以通过名字ping
+到，这时候因为都连接到了用户自定义的tomcat-net bridge上
+
+```bash
+docker exec -it tomcat01 bash
+
+root@12f2>ping custom-net-tomcat
+# 这个也是可以ping通的
+```
 
 
 
+（9）反之，在宿主机中通过容器名 ping 平级的其他应用，是ping不同的。
 
 
 
+### 2.2.3 结论
 
+​	相关的网络执行命令以及各个容器的通信
 
+```bash
+#1.可以创建一个新的network供自己使用
+docker network create [network-name]
 
+#2.查看网络
+docker network ls
 
+#3.将contaniner-name应用添加到另外一个网络中，相当于又给当前容器分片一个其他网络段中的ip
+docker network connect [network-name] [container-name]
 
+#4.启动容器自定义连接某一个网络
+ --network [network-name]
+ 例如：docker run -d --name tomat-custom --network my-network tomat
 
-# 2.Docker 指定网络配置
+#5.在宿主机中即dokcer0网络中，不可以通过容器名 连接其他容器
 
-可以再docker运行的时候通过--net参数指定容器的网络配置，可选有bridge、host、container、none
+#6.自定义的网络，单机环境中，可以直接通过容器名连接其他应用，这也是单机环境中各个容器能够通过的一个方法，特别是在不确定容器ip的时候。
 
-- --net=bridge  : 默认值，在Docker网桥上为容器创建新的网格栈
-- --net= host   :告诉Docker不要将容器网络放到隔离的命令空间中，即不要容器化容器内的网络。辞职使用本地主机的网络，拥有本地主机接口的访问权限。。这个对于本地主机较为危险。需要小心
-- --net=container  :让Docker将新建容器的进程放到一个已存在容器的网络栈中，新容器进程有自己的文件系统、进程列表和资源限制，但和已存在的容器共享IP地址和端口等网络资源，亮这个直接通过lo环回接口通信
-- --net=none :让Docker将所有新容器放到隔离的网络栈中，但是不进行网络配置，由用户自己配置。
+```
+
