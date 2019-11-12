@@ -41,7 +41,7 @@
 | LABEL                                         | 设置镜像标签<br />比如：LABEL email="visonws@163.com"        |
 | ADD <src> <dest>                              | 将宿主的目录的文件copy进镜像;并且ADD命令会自动解压压缩包     |
 | COPY <src> <dest>                             | 将宿主的目录的文件copy进镜像                                 |
-| VOLUME                                        | 创建一个从本地主机或者其他容器挂载的挂载点-容器数据卷，用来保存和持久化 |
+| VOLUME                                        | 创建一个从本地主机或者其他容器挂载的挂载点-容器数据卷，用来保存和持久化；<br/>比如：VOLUME /var/lib/mysql  表示容器中该目录存储数据，并且我们宿主机有对应的目录和该目录挂载，通过docker volumn ls查看具体信息 |
 | CMD  [executable,param1,param2]               | docker容器启动运行命令：多条cmd命令只有最后一条生效<br/>**CMD命令会被docker run 之后的参数替换**<br />CMD ["java","-jar","dockerfile-image.jar"] |
 | ENTRYPOINT                                    | 指定容器启动过程中需要运行的命令<br/>多条cmd命令只有最后一条生效<br/>**ENTRYPOINT会把docker run 命令的参数追加到后面**:<br />比如：ENTRYPOINT ["docker-entrypoint.sh"] |
 | ONBUILD  [INSTRUCTION]                        | 配置当所创建的镜像作为其他新创建镜像的基础镜像，所执行的操作指令<br/>       在一个镜像中用 ONBUILD修饰了相关命令，然后把这个dockerFile保存为一个镜像，当其他镜像通过FROM 把这个镜像作为基础镜像，会自动自行ONBUILD修饰的命令 |
@@ -61,8 +61,9 @@ VOLUME /usr/local/wmled
 COPY demo-0.0.1-SNAPSHOT.jar wmled.jar
 #开放端口
 EXPOSE 80 8080 9092 6379 8085
-#启动程序
+#启动程序 或者CMD ["java","-jar","wmled.jar"]
 ENTRYPOINT java -jar wmled.jar
+
 ```
 
 通过`docker build -t my-led .`就可以创建好当前的镜像了 。

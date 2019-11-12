@@ -1,7 +1,3 @@
-
-
-
-
 采用 vagrant + virtual box 安装虚拟机
 
 
@@ -125,8 +121,6 @@ end
 
 ```
 
-
-
 ## 5.box 的分发
 
 ```text
@@ -146,5 +140,68 @@ end
 	
 06 根据Vagrantfile启动虚拟机
 	vagrant up [此时可以得到和之前一模一样的环境，但是网络要重新配置]
+```
+
+## 6.同步文件
+
+```bash
+#Vagrantfile文件中配置该文件
+config.vm.synced_folder "D://software//nginx//html", "/usr/local/vison/wm-nginx/html"
+
+#需要安装插件
+vagrant plugin install vagrant-vbguest
+```
+
+
+
+## 7.同时启动多台虚拟机
+
+​	这里会启动manager-node，worker01-node，worker02-node三台机器
+
+```bash
+boxes = [
+    {
+        :name => "manager-node",
+        :eth1 => "192.168.0.11",
+        :mem => "1024",
+        :cpu => "1"
+    },
+    {
+        :name => "worker01-node",
+        :eth1 => "192.168.0.12",
+        :mem => "1024",
+        :cpu => "1"
+    },
+    {
+        :name => "worker02-node",
+        :eth1 => "192.168.0.13",
+        :mem => "1024",
+        :cpu => "1"
+    }
+]
+
+Vagrant.configure(2) do |config|
+
+  config.vm.box = "centos/7"
+  
+   boxes.each do |opts|
+      config.vm.define opts[:name] do |config|
+        config.vm.hostname = opts[:name]
+        config.vm.provider "vmware_fusion" do |v|
+          v.vmx["memsize"] = opts[:mem]
+          v.vmx["numvcpus"] = opts[:cpu]
+        end
+
+        config.vm.provider "virtualbox" do |v|
+          v.customize ["modifyvm", :id, "--memory", opts[:mem]]
+		  v.customize ["modifyvm", :id, "--cpus", opts[:cpu]]
+		  v.customize ["modifyvm", :id, "--name", opts[:name]]
+        end
+
+        config.vm.network :public_network, ip: opts[:eth1]
+      end
+  end
+
+end
 ```
 

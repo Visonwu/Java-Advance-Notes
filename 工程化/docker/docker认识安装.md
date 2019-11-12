@@ -1,5 +1,7 @@
 # 1.Docker介绍
 
+​	可以自己https://labs.play-with-docker.com/线上使用docker机器
+
 ## 1.1 Docker作用
 
 ​	**Docker**一种容器技术， Docker是基于**Go**语言实现目标：“Build，Ship and Run Any App,Anywhere”；一次封装到处运行。

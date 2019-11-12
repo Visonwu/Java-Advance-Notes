@@ -55,42 +55,6 @@
 
 
 
-# 4.数据卷和数据卷容器
-
-## 4.1 数据卷挂载
-
-​	通过  **-v** 可以是实现把宿主机目录挂载到容器目录中
-
-```cmd
-命令：`docker run -it -v 宿主机绝对路径：容器内路径 镜像名` 
-
-例子：docker run -it -v /src/webapp:/opt/webapp centos
-
-//目录不存在会自动创建目录，默认docker挂载的数据卷默认权限是读写的(rw);
-如果要改为只读，通过添加(ro)实现
-即：docker run -it -v /src/webapp:/opt/webapp:ro centos
-
-```
-
-
-
-## 4.2 数据卷容器
-
-​	即运行一个docker容器作为其他容器的数据卷；通过 **--volumes-from**命令实现。挂载多个数据卷，通过多个**--volumes-from**实现。另外数据卷自身并不一定需要保持在运行状态。挂载的容器如果被删除了，数据卷并不会被删除，只有删除最后一个挂载它的容器显示使用**docker rm -v** 删除指定关联的容器。
-
-```cmd
-例子：
-步骤一：新建一个数据卷容器no,供其他容器挂载使用
-	docker run -it -v /dbdata --name n0 centos
-
-步骤二：新建另外两个容器来挂载该容器
-	docker run -it --volumes-from n0 --name n1 centos
-	docker run -it --volumes-from n0 --name n2 centos
-
-上面中n1,n2 挂载了n0 /dbdata目录，所以任意一个容器修改dbdata中的文件，其他容器都能看到。当然
-
-```
-
 
 
 
