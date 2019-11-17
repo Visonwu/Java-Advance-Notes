@@ -1,4 +1,6 @@
-# 1.下载
+# 1.Linux安装
+
+## 1.1.下载
 
 ```bash
 #下载
@@ -13,9 +15,7 @@ mv  mongodb-linux-x86_64-3.0.6/ /usr/local/mongodb
 export PATH=/usr/local/mongodb/bin:$PATH
 ```
 
-
-
-# 2. 启动
+## 1.2. 启动
 
 ```bash
 ##在/usr/local/mongodb下
