@@ -150,6 +150,8 @@ config.vm.synced_folder "D://software//nginx//html", "/usr/local/vison/wm-nginx/
 
 #需要安装插件
 vagrant plugin install vagrant-vbguest
+
+#如果不用插件，建议uninstall这个插件，不然每次都会去下载插件，极慢
 ```
 
 

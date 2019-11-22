@@ -88,13 +88,12 @@
         lvm2
 
 2.设置docker仓库
-	sudo yum-config-manager \
-        --add-repo \
-        https://download.docker.com/linux/centos/docker-ce.repo
-
 #使用阿里镜像
 	sudo yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
-
+ #官网：
+ 		sudo yum-config-manager \
+        --add-repo \
+        https://download.docker.com/linux/centos/docker-ce.repo
 
 3.安装docker
 	sudo yum install -y docker-ce docker-ce-cli containerd.io
