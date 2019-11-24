@@ -327,7 +327,7 @@ done
 >
 > `注意`：**此操作是在主节点上进行**
 
-```
+```shell
 # 本地有镜像
 kubeadm init --kubernetes-version=1.14.0 --apiserver-advertise-address=192.168.8.51 --pod-network-cidr=10.244.0.0/16
 【若要重新初始化集群状态：kubeadm reset，然后再进行上述操作】
@@ -398,6 +398,8 @@ master-kubeadm-k8s     Ready    master   19m     v1.14.0
 worker01-kubeadm-k8s   Ready    <none>   3m6s    v1.14.0
 worker02-kubeadm-k8s   Ready    <none>   2m41s   v1.14.0
 ```
+
+​	  要让每一个node节点都能够使用kubectl命令，那么需要将master节点中 $HOME/.kube/config文件拷贝到其他node节点中相同位置。
 
 ## 1.12 再次体验Pod
 
