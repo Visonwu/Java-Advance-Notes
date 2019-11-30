@@ -1,0 +1,16 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    volumeMounts:
+      - name: my-pvc
+        mountPath: "/usr/vison"
+  restartPolicy: "Never"
+  volumes:
+    - name: my-pvc
+      persistentVolumeClaim:
+        claimName: my-pvc

@@ -98,7 +98,7 @@ CICD = “Continuous Integration and Continuous Delivery”，如下所示：
 
 ### 1.1.3 使用 代码仓库Gitlab 
 
-> 直接采用github；  git@github.com:itcrazy2016/springboot-demo.git
+> 直接采用github；  git@github.com:visonws/springboot-demo.git
 
 ### 1.1.4 安装 Jenkins
 
@@ -142,7 +142,9 @@ password:123456
 >
 > [系统管理]->[全局工具配置]->[Maven、JDK、Git等]
 >
-> 配置maven，jdk，git的的安装路径，maven的xml配置，git的默认在linux中估计是/big/git
+> 配置maven，jdk，git的的安装路径，maven的xml配置，git的默认在linux中估计是/big/git，如下：
+>
+> ![MLb7uQ.png](https://s2.ax1x.com/2019/11/24/MLb7uQ.png)
 
 ### 1.1.4 Docker hub
 

@@ -770,15 +770,15 @@ spec:
   type: NodePort  
 ```
 
-> 显然，Service-NodePort的方式生产环境不推荐使用，那接下来就基于上述需求，使用Ingress实现访问tomcat的需求。
->
+显然，Service-NodePort的方式生产环境不推荐使用，那接下来就基于上述需求，使用Ingress实现访问tomcat的需求。
+
 > `官网Ingress`:<https://kubernetes.io/docs/concepts/services-networking/ingress/>
 >
 > `GitHub Ingress Nginx`:<https://github.com/kubernetes/ingress-nginx>
 >
 > `Nginx Ingress Controller`:<https://kubernetes.github.io/ingress-nginx/>
 
-> (1)以Deployment方式创建Pod，该Pod为Ingress Nginx Controller，要想让外界访问，可以通过Service的NodePort或者HostPort方式，这里选择HostPort，比如指定worker01运行
+**(1)**  以Deployment方式创建Pod，该Pod为Ingress Nginx Controller，要想让外界访问，可以通过Service的NodePort或者HostPort方式，这里选择HostPort，比如指定worker01运行
 
 ```shell
 # 打标签；确保nginx-controller运行到w1节点上

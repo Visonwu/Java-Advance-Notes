@@ -330,7 +330,7 @@ done
 ```shell
 # 本地有镜像
 kubeadm init --kubernetes-version=1.14.0 --apiserver-advertise-address=192.168.8.51 --pod-network-cidr=10.244.0.0/16
-【若要重新初始化集群状态：kubeadm reset，然后再进行上述操作】
+【若要重新初始化集群状态：kubeadm reset，删除master节点上的 .kube文件然后再进行上述操作】
 ```
 
 **记得保存好最后kubeadm join的信息**
