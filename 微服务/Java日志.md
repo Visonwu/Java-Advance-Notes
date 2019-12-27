@@ -2,7 +2,7 @@
 
 ​		这个时候又轮到Apache 出手了，它推出了一个 ApacheCommons Logging 组件， JCL 只是定义了一套日志接口其内部也提供一个 Simple Log 的简单实现 ))，支持运行时动态加载日志组件的实现，也就是说，在你应用代码里，只需调用 Commons Logging 的接口，底层实现可以是Log4j ，也可以是 Java Util Logging由于它很出色的完成了主流日志的兼容，所以基本上在后面很长一段时间，是无敌的存在。连 spring 也都是依赖 JCL进行日志管理但是故事并没有结束原Log4J 的作者，它觉得 Apache Commons Logging 不够优秀，所以他想搞一套更优雅的方案，于是 slf4j 日志体系诞生了，slf 4j 实际上就是一个日志门面接口，它的作用类似于 Commons Loggins 。 并且他还为 slf4j 提供了一个日志的实现 log back 。
 
-​			因此大家可以发现Java 的日志领域被划分为两个大营：**Commons Logging 和 slf4j**；另外，还有一个log4j2 是怎么回事呢？ 因为 s lf4j 以及它的实现 l ogback 出来以后，很快就赶超了原本 apache 的log 4j 体系，所以 apache 在 2012 年重写了 log4j 成立了新的项目 Log4j2。
+​			因此大家可以发现Java 的日志领域被划分为两个大营：**Commons Logging 和 slf4j**；另外，还有一个log4j2 是怎么回事呢？ 因为 slf4j 以及它的实现 l ogback 出来以后，很快就赶超了原本 apache 的log 4j 体系，所以 apache 在 2012 年重写了 log4j 成立了新的项目 Log4j2。
 
 ![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g4r99dwpiyj20oq0eagmm.jpg)
 
