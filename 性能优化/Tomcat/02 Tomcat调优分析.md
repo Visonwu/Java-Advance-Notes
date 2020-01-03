@@ -27,8 +27,6 @@ jconsole、jvisualvm、arthas、psi-probe等
 
 
 
-
-
 # 2. 优化思路
 
 ## 2.1 **conf/server.xml**核心组件
@@ -103,7 +101,7 @@ jconsole、jvisualvm、arthas、psi-probe等
 
 ## 2.3 **conf/web.xml**
 
-全局的web.xml文件有些标签用不到的，可以删除掉。
+​	全局的web.xml文件有些标签用不到的，可以删除掉。
 
 
 
@@ -282,7 +280,7 @@ reloadable:如果这个属性设为true，tomcat服务器在运行状态下会�
 
   减少对数据库访问等待的时间，可以从数据库的层面进行优化，或者加缓存等等各种方案。 
 
-- 开启浏览器缓存，nginx静态资源部署
+- **开启浏览器缓存**，nginx静态资源部署
 
 
 
