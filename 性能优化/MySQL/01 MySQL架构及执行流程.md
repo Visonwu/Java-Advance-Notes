@@ -842,8 +842,6 @@ mysql> show variables like 'log_error'
 
 
 
-
-
 ​     默认将运行时间**超过10s的sql**记录下来，该阀值通过`long_query_time`开启。
 
 **默认该日志是不开启的**，需要自己手动开启。
