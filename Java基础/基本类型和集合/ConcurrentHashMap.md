@@ -682,7 +682,7 @@ final Node<K,V>[] helpTransfer(Node<K,V>[] tab, Node<K,V> f) {
 
 |           | HashMap                           | ConcurrentHashMap      |
 | --------- | --------------------------------- | ---------------------- |
-| key,value | 运行一个key为null,多个value为null | key, value都不能为null |
+| key,value | 允许一个key为null,多个value为null | key, value都不能为null |
 | ....      |                                   |                        |
 |           |                                   |                        |
 

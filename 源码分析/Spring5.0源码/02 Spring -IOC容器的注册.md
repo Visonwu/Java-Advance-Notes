@@ -437,6 +437,230 @@ protected Object doCreateBean(final String beanName, final RootBeanDefinition mb
 }
 ```
 
+### 1）属性注入
+
+​		在了解循环依赖的时候， 我们曾经反复提到了popul ateB ean 这个函数， 也多少了解了这个
+函数的主要功能就是属性填充，那么究竟是如何实现填充的呢？
+
+```java
+public abstract class AbstractAutowireCapableBeanFactory{}	
+//将Bean属性设置到生成的实例对象上
+	protected void populateBean(String beanName, RootBeanDefinition mbd, @Nullable BeanWrapper bw) {
+		if (bw == null) {
+			if (mbd.hasPropertyValues()) {
+				throw new BeanCreationException(
+						mbd.getResourceDescription(), beanName, "Cannot apply property values to null instance");
+			}
+			else {
+				// Skip property population phase for null instance.
+				return;
+			}
+		}
+
+		// Give any InstantiationAwareBeanPostProcessors the opportunity to modify the
+		// state of the bean before properties are set. This can be used, for example,
+		// to support styles of field injection.
+		boolean continueWithPropertyPopulation = true;
+		//给InstantiationAwareBeanPostProcessor 最后一次机会在属性设置前来改变bean
+		//如:可以用来支持属性注入的类型
+		if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
+			for (BeanPostProcessor bp : getBeanPostProcessors()) {
+				if (bp instanceof InstantiationAwareBeanPostProcessor) {
+					InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
+					if (!ibp.postProcessAfterInstantiation(bw.getWrappedInstance(), beanName)) {
+						//返回值为是否继续填充bean
+						continueWithPropertyPopulation = false;
+						break;
+					}
+				}
+			}
+		}
+		// 如果后处理器发出停止填充命令则终止后续的执行
+		if (!continueWithPropertyPopulation) {
+			return;
+		}
+		//获取容器在解析Bean定义资源时为BeanDefiniton中设置的属性值
+		PropertyValues pvs = (mbd.hasPropertyValues() ? mbd.getPropertyValues() : null);
+
+		//对依赖注入处理，首先处理autowiring自动装配的依赖注入
+		if (mbd.getResolvedAutowireMode() == RootBeanDefinition.AUTOWIRE_BY_NAME ||
+				mbd.getResolvedAutowireMode() == RootBeanDefinition.AUTOWIRE_BY_TYPE) {
+			MutablePropertyValues newPvs = new MutablePropertyValues(pvs);
+
+			// Add property values based on autowire by name if applicable.
+			//根据Bean名称进行autowiring自动装配处理
+			if (mbd.getResolvedAutowireMode() == RootBeanDefinition.AUTOWIRE_BY_NAME) {
+				autowireByName(beanName, mbd, bw, newPvs);
+			}
+
+			// Add property values based on autowire by type if applicable.
+			//根据Bean类型进行autowiring自动装配处理
+			if (mbd.getResolvedAutowireMode() == RootBeanDefinition.AUTOWIRE_BY_TYPE) {
+				autowireByType(beanName, mbd, bw, newPvs);
+			}
+
+			pvs = newPvs;
+		}
+
+		// 后处理然已经初始化
+		//对非autowiring的属性进行依赖注入处理
+		boolean hasInstAwareBpps = hasInstantiationAwareBeanPostProcessors();
+		// 需要依赖检查
+		boolean needsDepCheck = (mbd.getDependencyCheck() != RootBeanDefinition.DEPENDENCY_CHECK_NONE);
+
+		if (hasInstAwareBpps || needsDepCheck) {
+			if (pvs == null) {
+				pvs = mbd.getPropertyValues();
+			}
+			PropertyDescriptor[] filteredPds = filterPropertyDescriptorsForDependencyCheck(bw, mbd.allowCaching);
+			if (hasInstAwareBpps) {
+				for (BeanPostProcessor bp : getBeanPostProcessors()) {
+					if (bp instanceof InstantiationAwareBeanPostProcessor) {
+						InstantiationAwareBeanPostProcessor ibp = (InstantiationAwareBeanPostProcessor) bp;
+						// 对所有需要依赖检查的属性进行后处理
+						pvs = ibp.postProcessPropertyValues(pvs, filteredPds, bw.getWrappedInstance(), beanName);
+						if (pvs == null) {
+							return;
+						}
+					}
+				}
+			}
+			if (needsDepCheck) {
+				checkDependencies(beanName, mbd, filteredPds, pvs);
+			}
+		}
+
+		if (pvs != null) {
+			//对属性进行注入
+			applyPropertyValues(beanName, mbd, bw, pvs);
+		}
+	}
+```
+
+
+
+### 2）初始化Bean
+
+​	大家应该记得在bean 配置时bean 中有一个init-method 的属性，这个属性的作用是在bean实例化前调用init-method 指定的方法来根据用户业务进行相应的实例化。我们现在就已经进入这个方法了，首先看一下这个方法的执行位置， Spring 中程序已经执行过bean 的实例化，并且进行了属性的填充，而就在这时将会调用用户设定的初始化方法。
+
+
+
+```java
+public abstract class AbstractAutowireCapableBeanFactory{}	
+	//初始容器创建的Bean实例对象，为其添加BeanPostProcessor后置处理器
+	protected Object initializeBean(final String beanName, final Object bean, @Nullable RootBeanDefinition mbd) {
+		//JDK的安全机制验证权限
+		if (System.getSecurityManager() != null) {
+			//实现PrivilegedAction接口的匿名内部类
+			AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
+				invokeAwareMethods(beanName, bean);
+				return null;
+			}, getAccessControlContext());
+		}
+		else {
+			//为Bean实例对象包装相关属性，如名称，类加载器，所属容器等信息
+            //对特殊的bean 处理： BeanNameAware 、BeanClassLoaderAware 、BeanFactoryAware
+			invokeAwareMethods(beanName, bean);
+		}
+
+		Object wrappedBean = bean;
+		//对BeanPostProcessor后置处理器的postProcessBeforeInitialization
+		//回调方法的调用，为Bean实例初始化前做一些处理
+		if (mbd == null || !mbd.isSynthetic()) {
+			wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
+		}
+
+		//调用Bean实例对象初始化的方法，这个初始化方法是在Spring Bean定义配置
+		//文件中通过init-method属性指定的
+		try {
+			invokeInitMethods(beanName, wrappedBean, mbd);
+		}
+		catch (Throwable ex) {
+			throw new BeanCreationException(
+					(mbd != null ? mbd.getResourceDescription() : null),
+					beanName, "Invocation of init method failed", ex);
+		}
+		//对BeanPostProcessor后置处理器的postProcessAfterInitialization
+		//回调方法的调用，为Bean实例初始化之后做一些处理
+		if (mbd == null || !mbd.isSynthetic()) {
+			wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
+		}
+
+		return wrappedBean;
+	}
+
+```
+
+​		客户定制的初始化方法除了我们熟知的使用配置init-method 外，还有使自定义的bean 实现InitializingBean 接口，并在afterPropertiesSet 中实现自己的初始化业务逻辑。
+​		init- method 与afterPropertiesSet 都是在初始化b巳an 时执行，执行顺序是afterPropertiesSet先执行，而init-method 后执行。
+
+```java
+protected void invokeInitMethods(String beanName, final Object bean, @Nullable RootBeanDefinition mbd)
+    throws Throwable {
+
+    boolean isInitializingBean = (bean instanceof InitializingBean);
+    if (isInitializingBean && (mbd == null || !mbd.isExternallyManagedInitMethod("afterPropertiesSet"))) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("Invoking afterPropertiesSet() on bean with name '" + beanName + "'");
+        }
+        if (System.getSecurityManager() != null) {
+            try {
+                AccessController.doPrivileged((PrivilegedExceptionAction<Object>) () -> {
+                    ((InitializingBean) bean).afterPropertiesSet();
+                    return null;
+                }, getAccessControlContext());
+            }
+            catch (PrivilegedActionException pae) {
+                throw pae.getException();
+            }
+        }
+        else {
+            //先执行InitializingBean接口的初始化
+            ((InitializingBean) bean).afterPropertiesSet();
+        }
+    }
+
+    if (mbd != null && bean.getClass() != NullBean.class) {
+        String initMethodName = mbd.getInitMethodName();
+        if (StringUtils.hasLength(initMethodName) &&
+            !(isInitializingBean && "afterPropertiesSet".equals(initMethodName)) &&
+            !mbd.isExternallyManagedInitMethod(initMethodName)) {
+            //再 执行init 方法
+            invokeCustomInitMethod(beanName, bean, mbd);
+        }
+    }
+}
+```
+
+### 3）注册DisposableBean
+
+```java
+protected void registerDisposableBeanIfNecessary(String beanName, Object bean, RootBeanDefinition mbd) {
+		AccessControlContext acc = (System.getSecurityManager() != null ? getAccessControlContext() : null);
+		if (!mbd.isPrototype() && requiresDestruction(bean, mbd)) {
+			if (mbd.isSingleton()) {
+				// Register a DisposableBean implementation that performs all destruction
+				// work for the given bean: DestructionAwareBeanPostProcessors,
+				// DisposableBean interface, custom destroy method.
+                //单例的销毁适配注册，会存储到一个Map中，在销毁时调用
+				registerDisposableBean(beanName,
+						new DisposableBeanAdapter(bean, beanName, mbd, getBeanPostProcessors(), acc));
+			}
+			else {
+				// A bean with a custom scope...
+				Scope scope = this.scopes.get(mbd.getScope());
+				if (scope == null) {
+					throw new IllegalStateException("No Scope registered for scope name '" + mbd.getScope() + "'");
+				}
+				scope.registerDestructionCallback(beanName,
+						new DisposableBeanAdapter(bean, beanName, mbd, getBeanPostProcessors(), acc));
+			}
+		}
+	}
+```
+
+
+
 
 
 ## 2.3 其他问题
@@ -591,7 +815,7 @@ createBean()->doCreateBean()->addSingletonFactory（）暴露引用
 2. 添加原始对象工厂对象到 singletonFactories 缓存中 
         → addSingletonFactory(beanName, new ObjectFactory<Object>{...})
 3. 填充属性，解析依赖 → populateBean(beanName, mbd, instanceWrapper)
-	populateBean 用于向 beanA 这个原始对象中填充属性，当它检测到 beanA 依赖于 beanB 时，会首先去实例化 beanB。beanB 在此方法处也会解析自己的依赖，当它检测到 beanA 这个依赖，于是调用BeanFactry.getBean("beanA") 这个方法，从容器中的singletonFactories获取 beanA；从而解决循环依赖
+	populateBean 用于向 beanA 这个原始对象中填充属性，当它检测到 beanA 依赖于 beanB 时，会首先去实例化beanB。beanB在此方法处也会解析自己的依赖，当它检测到 beanA 这个依赖，于是调用BeanFactry.getBean("beanA") 这个方法，从容器中的singletonFactories获取 beanA；从而解决循环依赖
 ```
 
 ```java
@@ -659,4 +883,149 @@ protected void addSingletonFactory(String beanName, ObjectFactory<?> singletonFa
     }
 }
 ```
+
+
+
+### 2） XXXAware注入
+
+​	我们的几个XXX Aware接口的注入是在初始化`initializeBean`的时候调用，不是在属性注入的时候调用
+
+在我们new XmlBeanFactory的时候,默认调用了如下构造器，注册了一个默认不注入的依赖接口，
+
+```java
+public abstract class AbstractAutowireCapableBeanFactory{
+    private final Set<Class<?>> ignoredDependencyTypes = new HashSet<>();
+	private final Set<Class<?>> ignoredDependencyInterfaces = new HashSet<>();
+	/**
+	 * Create a new AbstractAutowireCapableBeanFactory.
+	 * 构造器默认忽略如下几个接口的注入
+	 */
+	public AbstractAutowireCapableBeanFactory() {
+		super();
+		ignoreDependencyInterface(BeanNameAware.class);
+		ignoreDependencyInterface(BeanFactoryAware.class);
+		ignoreDependencyInterface(BeanClassLoaderAware.class);
+	}
+    
+    // 这个方法会在bean填充属性populateBean的时候调用，排除这几个xxxAware接口的注入；
+    // 前提是使用上面的接口
+    protected boolean isExcludedFromDependencyCheck(PropertyDescriptor pd) {
+		return (AutowireUtils.isExcludedFromDependencyCheck(pd) ||
+				this.ignoredDependencyTypes.contains(pd.getPropertyType()) ||
+				AutowireUtils.isSetterDefinedInInterface(pd, this.ignoredDependencyInterfaces));
+	}
+}
+```
+
+```java
+//这个实在Bean的initializeBean的时候再次调用的。
+private void invokeAwareMethods(final String beanName, final Object bean) {
+    if (bean instanceof Aware) {
+        if (bean instanceof BeanNameAware) {
+            ((BeanNameAware) bean).setBeanName(beanName);
+        }
+        if (bean instanceof BeanClassLoaderAware) {
+            ClassLoader bcl = getBeanClassLoader();
+            if (bcl != null) {
+                ((BeanClassLoaderAware) bean).setBeanClassLoader(bcl);
+            }
+        }
+        if (bean instanceof BeanFactoryAware) {
+            ((BeanFactoryAware) bean).setBeanFactory(AbstractAutowireCapableBeanFactory.this);
+        }
+    }
+}
+```
+
+
+
+# 3. 容器的扩展
+
+new ClassPathXmlApplicationContext() -> refresh()
+
+```java
+@Override
+public void refresh() throws BeansException, IllegalStateException {
+    synchronized (this.startupShutdownMonitor) {
+        // Prepare this context for refreshing.
+        //调用容器准备刷新的方法，获取容器的当时时间，同时给容器设置同步标识
+        prepareRefresh();
+
+        //初始化BeanFactory，并进行XML 文件读取;那么在这一步骤中将会复用BeanFactory 中的配置文件读取解析及其他功能，这一步之后，
+        //ClassPathXmlApplicationContext 实际上就已经包含了BeanFactory所提供的功能，也就是可以进行bean 的提取等基础操作了。
+        ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
+
+        // Prepare the bean factory for use in this context.
+        //为BeanFactory配置容器特性，例如类加载器、事件处理器等
+        //	1.@Qualifier 与＠Autowired 应该是大家非常熟悉的注解，那么这两个注解正是在这一步骤中增加的支持。
+        //  2.相关的XXX Aware也在注入依赖中被排除，从而在初始化中注入
+        prepareBeanFactory(beanFactory);
+
+        try {
+            // Allows post-processing of the bean factory in context subclasses.
+            //为容器的某些子类指定特殊的BeanPost事件处理器；比如支持web的增加环境配置；
+            postProcessBeanFactory(beanFactory);
+
+            // Invoke factory processors registered as beans in the context.
+            //调用所有注册的BeanFactoryPostProcessor的Bean
+            invokeBeanFactoryPostProcessors(beanFactory);
+
+            // Register bean processors that intercept bean creation.
+            //为BeanFactory注册BeanPost事件处理器.这里只是注册(通过getBean获取beanPost并进行IOC存储)
+            // 真正的调用是在getBean 时候；BeanPostProcessor是Bean后置处理器，用于监听容器触发的事件
+            registerBeanPostProcessors(beanFactory);
+
+            // Initialize message source for this context.
+            //初始化信息源，和国际化相关.
+            initMessageSource();
+
+            // Initialize event multicaster for this context.
+            //初始化容器事件传播器.
+            initApplicationEventMulticaster();
+
+            // Initialize other special beans in specific context subclasses.
+            //调用子类的某些特殊Bean初始化方法
+            onRefresh();
+
+            // Check for listener beans and register them.
+            //为事件传播器注册事件监听器.
+            registerListeners();
+
+            // Instantiate all remaining (non-lazy-init) singletons.
+            //初始化所有剩余的单例Bean（ 非惰性的）
+            finishBeanFactoryInitialization(beanFactory);
+
+            // Last step: publish corresponding event.
+            //初始化容器的生命周期事件处理器，并发布容器的生命周期事件
+            finishRefresh();
+        }
+
+        catch (BeansException ex) {
+            if (logger.isWarnEnabled()) {
+                logger.warn("Exception encountered during context initialization - " +
+                            "cancelling refresh attempt: " + ex);
+            }
+
+            // Destroy already created singletons to avoid dangling resources.
+            //销毁已创建的Bean
+            destroyBeans();
+
+            // Reset 'active' flag.
+            //取消refresh操作，重置容器的同步标识.
+            cancelRefresh(ex);
+
+            // Propagate exception to caller.
+            throw ex;
+        }
+
+        finally {
+            // Reset common introspection caches in Spring's core, since we
+            // might not ever need metadata for singleton beans anymore...
+            resetCommonCaches();
+        }
+    }
+}
+```
+
+
 

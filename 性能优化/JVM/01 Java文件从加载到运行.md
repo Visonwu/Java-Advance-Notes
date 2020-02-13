@@ -179,7 +179,7 @@ ClassFile {
 
 ## 4.1 分类
 
-- **1）Bootstrap ClassLoader** 负责加载$JAVA_HOME中 jre/lib/rt.jar 里所有的class或Xbootclassoath选项指定的jar包。由C++实现，不是ClassLoader子类。
+- **1）Bootstrap ClassLoader** 负责加载$JAVA_HOME中 jre/lib/rt.jar 里所有的class或Xbootclasspath选项指定的jar包。由C++实现，不是ClassLoader子类。
 - **2）Extension ClassLoader** 负责加载java平台中扩展功能的一些jar包，包括$JAVA_HOME中
   jre/lib/*.jar 或 -Djava.ext.dirs指定目录下的jar包。
 - **3）App ClassLoader** 负责加载classpath中指定的jar包及 Djava.class.path 所指定目录下的类和
