@@ -3,7 +3,7 @@
 # 1.引用
 
 - **1.强引用**
-   例如 ：Objec obj = new Object(); GC不可达的时候回收
+   例如 ：Object obj = new Object(); GC不可达的时候回收
 
 - **2.软引用**
    Java提供SoftReference 类 ，GC的时候如果发现内存不足，这个软引用会被干掉
