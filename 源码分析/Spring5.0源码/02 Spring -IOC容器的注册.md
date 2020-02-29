@@ -50,36 +50,29 @@
 主要 流程：
 
 - 1).转换对应beanName
-
-  - 包含alias和&factoryBean的转换
-
+- 包含alias和&factoryBean的转换
+  
 - 2) 尝试从缓存中加载单例
-
-  - 有一个单例map缓存单例，有的话直接返回，
-
-  - bean 的实例化：当然返回的时候如果是获取 FactoryBean产生的对象需要转换
-
+- 有一个单例map缓存单例，有的话直接返回，
+  
+- bean 的实例化：当然返回的时候如果是获取 FactoryBean产生的对象需要转换
+  
 - 3)原型模式的依赖检查
-
-  - 如果原型模式存在循环依赖会报错，spring只处理单例模式的循环依赖
-
+- 如果原型模式存在循环依赖会报错，spring只处理单例模式的循环依赖
+  
 - 4)检则parentBeanFactory
-
-  - 如果缓存没有数据，并且当前有父工厂那么使用父工厂加载该bean
-
+- 如果缓存没有数据，并且当前有父工厂那么使用父工厂加载该bean
+  
 - 5) 将存储XML 配置文件的GernericBeanDefinition 转换为RootBean Definition
-
-  - 如果父类不为空要合并父类的属性；这里全部都会转换为RootBeanDefinition
-
+- 如果父类不为空要合并父类的属性；这里全部都会转换为RootBeanDefinition
+  
 - 6)寻找依赖
-
-  - 如果有依赖会先加载依赖getBean
-
+- 如果有依赖会先加载依赖getBean
+  
 - 7)针对不同的scope 进行bean 的创建
 
 - 8)类型转换
-
-  - 常对该方法的调用参数requiredType 是为空的，但是可能会存在这样的情况，返回的bean 其实是个String ，但是requiredType 却传人Integer类型，那么这时候本步骤就会起作用了，它的功能是将返回的bean 转换为requiredType 所指定的类型。当然， String 转换为Integer 是最简单的一种转换，在Spri ng 中提供了各种各样的转换器，用户也可以自己扩展转换器来满足需求。
+- 常对该方法的调用参数requiredType 是为空的，但是可能会存在这样的情况，返回的bean 其实是个String ，但是requiredType 却传人Integer类型，那么这时候本步骤就会起作用了，它的功能是将返回的bean 转换为requiredType 所指定的类型。当然， String 转换为Integer 是最简单的一种转换，在Spri ng 中提供了各种各样的转换器，用户也可以自己扩展转换器来满足需求。
 
 **注：**
 
@@ -181,7 +174,8 @@ protected <T> T doGetBean(final String name, @Nullable final Class<T> requiredTy
             checkMergedBeanDefinition(mbd, beanName, args);
 
             // Guarantee initialization of beans that the current bean depends on.
-            //获取当前Bean所有依赖Bean的名称
+            //获取当前Bean所有依赖Bean的名称,这边的依赖表示的是被依赖项必须先于当前的bean的加载；
+            //xml配置是：depend-on;不同于ref（表示bean的属性了）；
             String[] dependsOn = mbd.getDependsOn();
             //如果当前Bean有依赖Bean
             if (dependsOn != null) {
@@ -313,11 +307,11 @@ protected <T> T doGetBean(final String name, @Nullable final Class<T> requiredTy
 	-- 如果既不存在工厂方法也不存在带有参数的构造函数，则使用默认的构造函数进行bean 的实例化
 3. MergedBeanDefinitionPostProcessor 的应用
 	bean合并后的处理， Autowired 注解正是通过此方法实现诸如类型的预解析。
-4. 依赖处理
+4. 属性的依赖处理
    在Spring 中会有循环依赖的情况，例如，当A 中含有B 的属性，而B 中又含有A 的属性时就会构成一个循环依赖，此时如果A 和B 都是单例，那么在Spring 中的处理方式就是当创建B 的时候，涉及自动注入A 的步骤时，并不是直接去再次创建A ，而是通过放入缓存中的ObjectFactory 来创建实例，这样就解决了循环依赖的问题。
 5. 属性填充；将所有属性填充至bean 的实例中
 6. 循环依赖检查
-	之前有提到过，在Sp ing 中解决循环依赖只对单例有效，而对于prototype 的bean, Spring没有好的解决办法，唯一要做的就是抛出异常。在这个步骤里面会检测已经加载的bean 是否已经出现了依赖循环，并判断是再需要抛出异常。
+	之前有提到过，在Spring 中解决循环依赖只对单例有效，而对于prototype 的bean, Spring没有好的解决办法，唯一要做的就是抛出异常。在这个步骤里面会检测已经加载的bean 是否已经出现了依赖循环，并判断是再需要抛出异常。
 7. 注册DisposableBean 
 	如果配置了destroy-method ，这里需要注册以便于在销毁时候调用。
 8. 完成创建井返回。
@@ -439,7 +433,7 @@ protected Object doCreateBean(final String beanName, final RootBeanDefinition mb
 
 ### 1）属性注入
 
-​		在了解循环依赖的时候， 我们曾经反复提到了popul ateB ean 这个函数， 也多少了解了这个
+​		在了解循环依赖的时候， 我们曾经反复提到了populateBean 这个函数， 也多少了解了这个
 函数的主要功能就是属性填充，那么究竟是如何实现填充的呢？
 
 ```java
@@ -572,6 +566,7 @@ public abstract class AbstractAutowireCapableBeanFactory{}
 
 		//调用Bean实例对象初始化的方法，这个初始化方法是在Spring Bean定义配置
 		//文件中通过init-method属性指定的
+        //init-methond方法和InitializingBean 方法这里执行，但是只能执行一个；后者拥有就执行后者；afterPropertiesSet不兼容
 		try {
 			invokeInitMethods(beanName, wrappedBean, mbd);
 		}
@@ -592,7 +587,7 @@ public abstract class AbstractAutowireCapableBeanFactory{}
 ```
 
 ​		客户定制的初始化方法除了我们熟知的使用配置init-method 外，还有使自定义的bean 实现InitializingBean 接口，并在afterPropertiesSet 中实现自己的初始化业务逻辑。
-​		init- method 与afterPropertiesSet 都是在初始化b巳an 时执行，执行顺序是afterPropertiesSet先执行，而init-method 后执行。
+​		init- method 与afterPropertiesSet 都是在初始化bean 时执行，执行顺序是afterPropertiesSet先执行，而init-method 后执行。
 
 ```java
 protected void invokeInitMethods(String beanName, final Object bean, @Nullable RootBeanDefinition mbd)
@@ -622,6 +617,7 @@ protected void invokeInitMethods(String beanName, final Object bean, @Nullable R
 
     if (mbd != null && bean.getClass() != NullBean.class) {
         String initMethodName = mbd.getInitMethodName();
+        //这里应该和afterPropertiesSet不兼容，前面实现了InitializingBean接口不在执行这个
         if (StringUtils.hasLength(initMethodName) &&
             !(isInitializingBean && "afterPropertiesSet".equals(initMethodName)) &&
             !mbd.isExternallyManagedInitMethod(initMethodName)) {

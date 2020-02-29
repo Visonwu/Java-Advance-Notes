@@ -1,4 +1,4 @@
-​			Spring 的MVC 是基于Servlet 功能实现的，通过实现Servlet 接口的`DispatcherServlet `来封装其核心功能实现，通过将请求分派给处理程序，同时带有可配置的处理程序映射、视图解析、本地语言、主题解析以及上载文件支持。默认的处理程序是非常简单的Controller 接口，只有一个方法ModelAndView handleRequest(request, response） 。Spring 提供了一个控制器层次结构，可以派生子类。如果应用程序需要处理用户输入表单， 那么可以继承AbstractFormController。如果需要把多页输入处理到一个表单，那么可以继承AbstractWizardFormController。
+	    Spring 的MVC 是基于Servlet 功能实现的，通过实现Servlet 接口的`DispatcherServlet `来封装其核心功能实现，通过将请求分派给处理程序，同时带有可配置的处理程序映射、视图解析、本地语言、主题解析以及上载文件支持。默认的处理程序是非常简单的Controller 接口，只有一个方法ModelAndView handleRequest(request, response） 。Spring 提供了一个控制器层次结构，可以派生子类。如果应用程序需要处理用户输入表单， 那么可以继承AbstractFormController。如果需要把多页输入处理到一个表单，那么可以继承AbstractWizardFormController。
 
 
 

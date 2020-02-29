@@ -48,7 +48,7 @@ public class TestMyBatis {
 SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(inputStream);
 ```
 
-首 先 我 们 要 清 楚 的 是 配 置 解 析 的 过 程 全 部 只 解 析 了 两 种 文 件 。 
+​		首先我们要清楚的 是配 置 解 析 的 过 程 全 部 只 解 析 了 两 种 文 件 ；所有解析的都存储在Configuration类中
 
 - 一 个 是`mybatis-config.xml` 全局配置文件
 
@@ -88,6 +88,10 @@ XMLConfigBuilder.parse（） -> XmlMapperBuilder.parse（） -> XmlStatementBuil
 
 ```java
  SqlSession session = sqlSessionFactory.openSession();
+
+包含：
+  1.创建事务
+  2.创建Executor执行器
 ```
 
 
@@ -126,8 +130,26 @@ XMLConfigBuilder.parse（） -> XmlMapperBuilder.parse（） -> XmlStatementBuil
 包装完毕后，会执行:
 
 ```java
-//此处会对 executor 进行包装。
-Executor executor = (Executor) interceptorChain.pluginAll(executor);
+//创建executor
+public Executor newExecutor(Transaction transaction, ExecutorType executorType) {
+    executorType = executorType == null ? defaultExecutorType : executorType;
+    executorType = executorType == null ? ExecutorType.SIMPLE : executorType;
+    Executor executor;
+    if (ExecutorType.BATCH == executorType) {
+        executor = new BatchExecutor(this, transaction);
+    } else if (ExecutorType.REUSE == executorType) {
+        executor = new ReuseExecutor(this, transaction);
+    } else {
+        executor = new SimpleExecutor(this, transaction);
+    }
+    if (cacheEnabled) {
+        executor = new CachingExecutor(executor); //这个表示二级缓存
+    }
+    //这里对executor做拦截处理；也是对Executor做代理处理；
+    executor = (Executor) interceptorChain.pluginAll(executor);
+    return executor;
+}
+
 ```
 
 ## 2.3 最终返回
@@ -138,7 +160,7 @@ Executor executor = (Executor) interceptorChain.pluginAll(executor);
 
 
 
-**时序图如下：**
+## 2.4 时序图
 
 ![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g2lvxtpepmj210y0s8zm9.jpg)
 
@@ -184,11 +206,11 @@ return (T) Proxy. newProxyInstance ( mapperInterface.getClassLoader(), new Class
 
 
 
-**获取代理对象时序图**
+## 3.3 获取代理对象时序图
 
 ![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g2lwew5ytnj212x0s3dha.jpg)
 
-## 3.3 总结
+## 3.4 总结
 
 ​	获得 Mapper 对象的过程，实质上是获取了一个 MapperProxy 的代理对象。MapperProxy 中有 sqlSession、mapperInterface、methodCache
 
@@ -196,9 +218,7 @@ return (T) Proxy. newProxyInstance ( mapperInterface.getClassLoader(), new Class
 
 # 4.执行SQL
 
-由于所有的 Mapper 都是 MapperProxy 代理对象，所以任意的方法都是执行MapperProxy 的 invoke()方法
-
-
+​	 由于所有的 Mapper 都是 MapperProxy 代理对象，所以任意的方法都是执行MapperProxy 的 invoke()方法
 
 **MapperProxy.invoke()源码**
 
@@ -226,9 +246,9 @@ return (T) Proxy. newProxyInstance ( mapperInterface.getClassLoader(), new Class
 ```java
 try {
       if (Object.class.equals(method.getDeclaringClass())) {
-        return method.invoke(this, args);
+        return method.invoke(this, args); //Object的方法
       } else if (isDefaultMethod(method)) {
-        return invokeDefaultMethod(proxy, method, args);
+        return invokeDefaultMethod(proxy, method, args); //
       }
     } catch (Throwable t) {
       throw ExceptionUtil.unwrapThrowable(t);
@@ -260,9 +280,71 @@ final MapperMethod mapperMethod = cachedMapperMethod(method);
 
 ```java
 mapperMethod.execute( sqlSession, args)
+    
+//具体的方法
+  public Object execute(SqlSession sqlSession, Object[] args) {
+    Object result;
+    switch (command.getType()) {
+      case INSERT: {
+      Object param = method.convertArgsToSqlCommandParam(args);
+        result = rowCountResult(sqlSession.insert(command.getName(), param));
+        break;
+      }
+      case UPDATE: {
+        Object param = method.convertArgsToSqlCommandParam(args);
+        result = rowCountResult(sqlSession.update(command.getName(), param));
+        break;
+      }
+      case DELETE: {
+        Object param = method.convertArgsToSqlCommandParam(args);
+        result = rowCountResult(sqlSession.delete(command.getName(), param));
+        break;
+      }
+      case SELECT:
+        if (method.returnsVoid() && method.hasResultHandler()) {
+          executeWithResultHandler(sqlSession, args);
+          result = null;
+        } else if (method.returnsMany()) {
+          result = executeForMany(sqlSession, args);
+        } else if (method.returnsMap()) {
+          result = executeForMap(sqlSession, args);
+        } else if (method.returnsCursor()) {
+          result = executeForCursor(sqlSession, args);
+        } else {
+          Object param = method.convertArgsToSqlCommandParam(args);
+          result = sqlSession.selectOne(command.getName(), param);
+        }
+        break;
+      case FLUSH:
+        result = sqlSession.flushStatements();
+        break;
+      default:
+        throw new BindingException("Unknown execution method for: " + command.getName());
+    }
+    if (result == null && method.getReturnType().isPrimitive() && !method.returnsVoid()) {
+      throw new BindingException("Mapper method '" + command.getName() 
+          + " attempted to return null from a method with a primitive return type (" + method.getReturnType() + ").");
+    }
+    return result;
+  }   
 ```
 
-**这里用了selectOne做的执行sql，具体时序图**
+## 4.4 时序图
+
+这里用了selectOne做的执行sql，具体时序图
+
+注：
+
+```java
+执行sql的才 在创建三大对象handler；
+StatementHandler； //负责执行sql的处理，同时也用plugin做了拦截器包装
+ParameterHandler;  //负责执行参数 的处理，同时也用plugin做了拦截器包装
+ResultSetHanler;   //负责sql执行后的 结果处理，同时也用plugin做了拦截器包装
+
+当然plugin除了对于上面三大天王 做了拦截；在创建Sqlsession的时候对Executor做了包装
+```
+
+
 
 ![](http://ww1.sinaimg.cn/large/b8a27c2fgy1g2lxd6td81j21my12s781.jpg)
 
