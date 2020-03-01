@@ -2,9 +2,9 @@
 
 
 
-
-
 # 1.Spring集成Mybatis步骤
+
+spring集成mybatis需要映入mybatis和spring的桥梁包---mybatis-spring
 
 **步骤一：导入包mybatis-spring**
 
@@ -21,6 +21,7 @@
 ```xml
 <bean id" ="sqlSessionFactory" class ="org.mybatis.spring.SqlSessionFactoryBean">
     <property name" ="configLocation" value ="classpath:mybatis-config.xml"></ property>
+    <!-- 这是mapper.xml的配置地址-->
     <property name" ="mapperLocations" value ="classpath:mapper/*.xml"></ property>
     <property name" ="dataSource" ref ="dataSource"/>
 </bean>
@@ -108,6 +109,245 @@
 
 ​	我们让 DAO 层的实现类继承 `SqlSessionDaoSupport`，就可以获得`SqlSessionTemplate`，然后在里面封装 `SqlSessionTemplate` 的方法。
 
+> 当然， 为了减少重复的代码， 我们通常不会让我们的实现类直接去继承SqlSessionDaoSupport，而是先创建一个BaseDao 继承SqlSessionDaoSupport。在BaseDao 里面封装对数据库的操作，包括selectOne()、selectList()、insert()、delete()这些方法，子类就可以直接调用。
+>
+> 然后让我们的实现类继承BaseDao 并且实现我们的DAO 层接口，这里就是我们的Mapper 接口。实现类需要加上@Repository 的注解。在实现类的方法里面，我们可以直接调用父类（BaseDao）封装的selectOne()方法，那么它最终会调用sqlSessionTemplate 的selectOne()方法
+
+### 1）代码：
+
+```java
+public  class BaseDao extends SqlSessionDaoSupport {
+    //使用sqlSessionFactory
+    @Autowired
+    private SqlSessionFactory sqlSessionFactory;
+
+    @Autowired
+    public void setSqlSessionFactory(SqlSessionFactory sqlSessionFactory) {
+        super.setSqlSessionFactory(sqlSessionFactory);
+    }
+
+    /**
+     * 获取Object对象
+     */
+    public Object selectOne(String statement) {
+        return getSqlSession().selectOne(statement);
+    }
+
+    public Object selectOne(String statement, Object parameter) {
+        return getSqlSession().selectOne(statement, parameter);
+    }
+}
+
+//DAO实现
+@Repository
+public class EmployeeDaoImpl extends BaseDao implements EmployeeMapper {
+    /**
+     * 暂时只实现了这一个方法
+     * @param empId
+     * @return
+     */
+    @Override
+    public Employee selectByPrimaryKey(Integer empId) {
+         //出现了Statement ID 的硬编码
+        Employee emp = (Employee) 
+            this.selectOne("com.vison.crud.dao.EmployeeMapper.selectByPrimaryKey",empId);
+        return emp;
+    }
+    
+}
+```
+
+
+
+
+
+## 2.4 @Autowired注入Mapper接口真相
+
+​		有没有更好的拿到SqlSessionTemplate 的方法？上面的方法是直接继承SqlSessionDaoSupport，但是还是需要些DAO的实现；但实际我们是通过直接@Autowired接口就可以了；
+
+​	实际我们上面扫描Mapper接口就是把这些放到IOC容器中，这样我们就可以直接通过@Autowired直接获取信息了；
+
+```xml
+<!--1-->
+< mybatis-spring:scan base-package="com.ws.vison.crud.dao"/>
+
+<!--2.或者下面这样扫描等-->
+@MapperScan( "com.ws.vison.crud.dao")
+
+<!--3.-->
+<bean id" ="mapperScanner" class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+	<property name" ="basePackage" value ="com.ws.vison.crud.dao"/>
+</ bean>
+```
+
+### 1) 扫描类MapperScannerConfigurer
+
+​	这个扫描通过`MapperScannerConfigurer`实现
+
+```java
+public class MapperScannerConfigurer implements BeanDefinitionRegistryPostProcessor, InitializingBean, ApplicationContextAware, BeanNameAware {
+
+  public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
+    if (this.processPropertyPlaceHolders) {
+      processPropertyPlaceHolders();
+    }
+
+    ClassPathMapperScanner scanner = new ClassPathMapperScanner(registry);
+    scanner.setAddToConfig(this.addToConfig);
+    scanner.setAnnotationClass(this.annotationClass);
+    scanner.setMarkerInterface(this.markerInterface);
+    scanner.setSqlSessionFactory(this.sqlSessionFactory);
+    scanner.setSqlSessionTemplate(this.sqlSessionTemplate);
+    scanner.setSqlSessionFactoryBeanName(this.sqlSessionFactoryBeanName);
+    scanner.setSqlSessionTemplateBeanName(this.sqlSessionTemplateBeanName);
+    scanner.setResourceLoader(this.applicationContext);
+    scanner.setBeanNameGenerator(this.nameGenerator);
+    scanner.registerFilters();
+     //重点这个扫描包
+    scanner.scan(StringUtils.tokenizeToStringArray(this.basePackage, ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS));
+  }
+}
+
+public class ClassPathBeanDefinitionScanner extends ClassPathScanningCandidateComponentProvider {
+
+    //扫描包实际实现
+	public int scan(String... basePackages) {
+		int beanCountAtScanStart = this.registry.getBeanDefinitionCount();
+
+        //这个调用子类重写的方法
+		doScan(basePackages);
+
+		// Register annotation config processors, if necessary.
+		if (this.includeAnnotationConfig) {
+			AnnotationConfigUtils.registerAnnotationConfigProcessors(this.registry);
+		}
+
+		return (this.registry.getBeanDefinitionCount() - beanCountAtScanStart);
+	}
+
+}
+public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
+  public Set<BeanDefinitionHolder> doScan(String... basePackages) {
+    Set<BeanDefinitionHolder> beanDefinitions = super.doScan(basePackages);
+
+    if (beanDefinitions.isEmpty()) {
+      logger.warn("No MyBatis mapper was found in '" + Arrays.toString(basePackages) + "' package. Please check your configuration.");
+    } else {
+      processBeanDefinitions(beanDefinitions);
+    }
+
+    return beanDefinitions;
+  }
+  
+   //处理BeanDefinition
+   private void processBeanDefinitions(Set<BeanDefinitionHolder> beanDefinitions) {
+    GenericBeanDefinition definition;
+    for (BeanDefinitionHolder holder : beanDefinitions) {
+      definition = (GenericBeanDefinition) holder.getBeanDefinition();
+
+      if (logger.isDebugEnabled()) {
+        logger.debug("Creating MapperFactoryBean with name '" + holder.getBeanName() 
+          + "' and '" + definition.getBeanClassName() + "' mapperInterface");
+      }
+
+      // the mapper interface is the original class of the bean
+      // but, the actual class of the bean is MapperFactoryBean
+      definition.getConstructorArgumentValues().addGenericArgumentValue(definition.getBeanClassName()); // issue #59
+      //实际Mapper存储的是MapperFactoryBean，这个继承了SqlSessionDaoSupport可以拿到SqlSessionTemplate
+      definition.setBeanClass(this.mapperFactoryBean.getClass());
+    	
+       ........
+    }  
+}
+   
+```
+
+### 2）MapperFacotoryBean作为Mapper的工厂类
+
+问题：
+	为什么要把注册bean的时候；把BeanClass 修改成MapperFactoryBean，这个类有什么作用？
+
+原因：MapperFactoryBean 继承了SqlSessionDaoSupport ， 可以拿到SqlSessionTemplate。
+
+如下所示：
+
+```java
+public class MapperFactoryBean<T> extends SqlSessionDaoSupport implements FactoryBean<T> {
+
+  private Class<T> mapperInterface;
+
+  private boolean addToConfig = true;
+
+  public MapperFactoryBean() {
+    //intentionally empty 
+  }
+  
+  public MapperFactoryBean(Class<T> mapperInterface) {
+    this.mapperInterface = mapperInterface;
+  }
+
+  @Override
+  public T getObject() throws Exception {
+    return getSqlSession().getMapper(this.mapperInterface);
+  }
+
+
+  /**
+   * Sets the mapper interface of the MyBatis mapper
+   * @param mapperInterface class of the interface
+   */
+  public void setMapperInterface(Class<T> mapperInterface) {
+    this.mapperInterface = mapperInterface;
+  }
+
+  /**
+   * Return the mapper interface of the MyBatis mapper
+   * @return class of the interface
+   */
+  public Class<T> getMapperInterface() {
+    return mapperInterface;
+  }
+```
+
+### 3）真相解密
+
+```java
+@Service
+public class EmployeeService {
+    @Autowired
+    EmployeeMapper employeeMapper;
+
+    public List<Employee> getAll() {
+
+        return employeeMapper.selectByMap(null);
+    }
+	....
+}
+```
+
+Spring 在启动的时候需要去实例化EmployeeService。
+			EmployeeService 依赖了EmployeeMapper 接口（是EmployeeService 的一个属性）。
+Spring 会根据Mapper 的名字从BeanFactory 中获取它的BeanDefination，再从BeanDefination 中获取BeanClass ， EmployeeMapper 对应的BeanClass 是MapperFactoryBean（上一步已经分析过）。
+接下来就是创建MapperFactoryBean，因为实现了FactoryBean 接口，同样是调用getObject()方法。
+
+最终：
+
+```java
+public class MapperFactoryBean <T> extends SqlSessionDaoSupport implements FactoryBean<T>  {
+   /**
+   * {@inheritDoc}
+   */
+  @Override
+  public T getObject() throws Exception {
+      //getSqlSession就是SqlSessionTemplate了；然后完全和我们之前分析的Mybatis的代码结合起来
+    return getSqlSession().getMapper(this.mapperInterface);
+  }
+  //获取流程   
+ SqlSessionTemplate -> DefaultSqlSession ->Configuration->MapperRegistry->mapperProxyFactory.newInstance(sqlSession)  ->MapperProxy(最终Mapper的代理类)
+
+}
+```
+
 
 
 ## 3. 其他
@@ -123,4 +363,10 @@
 
 
 **我们的Spring集成Mybatis有多种方式调用**
+
+
+
+
+
+# 3.Spring-Mybatis事务
 
