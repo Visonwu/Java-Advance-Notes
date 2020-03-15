@@ -94,7 +94,7 @@ channel.basicConsume(QUEUE_NAME,autoAck,"myConsumerTag",consumer);
 
 # 4.相关参数信息
 
-# 4.1 声明交换器方法参数
+## 4.1 声明交换器方法参数
 
 ```java
 参数详细说明如下所述：

@@ -84,8 +84,8 @@
 Vagrant.configure("2") do |config|
 	
    config.vm.box = "centos/7"
-   # 设置网络，这里是公共网络
-   config.vm.network "public_network"
+   # 设置网络，这里是公共网络,ip表示设置静态ip，不会每次启动都重新修改，这里网段要和你本地相同，否则无法访问
+   config.vm.network "public_network" ,ip:"192.168.0.131"
 
    config.vm.provider "virtualbox" do |vb|
      vb.memory = "2048"
@@ -115,6 +115,7 @@ end
     sudo -i
     vi /etc/ssh/sshd_config
     修改PasswordAuthentication yes
+    #修改成功后，在shell下修改密码
     passwd	修改密码
     systemctl restart sshd
     root vagrant 登录

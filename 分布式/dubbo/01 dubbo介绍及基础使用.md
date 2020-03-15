@@ -123,7 +123,7 @@ public class Consumer {
 
 **容器类型**
 
-- Spring Container：自动加载META INF/spring 目录下的所有 Spring 配置。
+- Spring Container：自动加载META-INF/spring 目录下的所有 Spring 配置。
 
 - logback Container：自动装配log back 日志
 

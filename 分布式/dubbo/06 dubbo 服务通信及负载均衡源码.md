@@ -5,10 +5,10 @@
 # 1. JavassistProxyFactory.getProxy
 
 ```java
- public <T> T getProxy(Invoker<T> invoker, Class<?>[] interfaces) {
+public <T> T getProxy(Invoker<T> invoker, Class<?>[] interfaces) {
         return (T) Proxy.getProxy(interfaces)
             .newInstance(new InvokerInvocationHandler(invoker));
-    }
+}
 ```
 
 
@@ -114,7 +114,7 @@ public Result invoke(Invocation invocation) throws RpcException {
 类的invoke方法中
 
 1. 绑定`attachments`，Dubbo中，可以通过 RpcContext 上的 setAttachment 和 getAttachment 在
-  服务消费方和提供方之间进行参数的隐式传递，所以这段代码中会去绑定attachments
+    服务消费方和提供方之间进行参数的隐式传递，所以这段代码中会去绑定attachments
 
   ```java
   RpcContext.getContext().setAttachment("index", "1")

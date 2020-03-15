@@ -374,6 +374,7 @@ redis>slowlog reset
 
 ```bash
 localhsot:1> redis-cli -a 123456 monitor
+//展示
 1339518083.107412 [0 127.0.0.1:60866] "keys" "*"
 1339518087.877697 [0 127.0.0.1:60866] "dbsize"
 ```

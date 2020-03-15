@@ -366,7 +366,7 @@ public class MapperFactoryBean <T> extends SqlSessionDaoSupport implements Facto
 
 
 
-
-
 # 3.Spring-Mybatis事务
+
+事务分：编程式事务和声明式事务（xml配置或者注释实现）
 

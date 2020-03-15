@@ -22,7 +22,7 @@
 
 ​		如上面的三个分区就会命名为firstTopic-0，firstTopic-1，firstTopic-2，如果同时是三个broker集群，那么这三个Partition会散布在三个机器上；
 
-如果是四个broker，其中一个broker是没有改topic分区数据的；
+如果是四个broker，其中一个broker是没有该topic分区数据的；
 
 如果只有两broker,其中一个broker有两个Partition数据
 
