@@ -432,8 +432,6 @@ AbstractBootStrap.initAndRegister()->AbstractBootStrap.init()->BootStrap.init()-
 
 ## 1.5 客户端发起连接请求
 
-
-
 ​		最终的我们的连接会调用到Bootsrap.doConnect();在doConnect()方法中，会**eventLoop** 线程中调用Channel 的connect()方法，而这个Channel 的具体类型实际就是NioSocketChannel
 
 
@@ -992,7 +990,7 @@ public void channelRead(ChannelHandlerContext ctx, Object msg) {
 
 
 
-**总结图：我们没来一个连接都会新建一个NioSocketChannel,并且再初始化各自channel的Handler，相互隔离**
+**总结图：我们每来一个连接都会新建一个NioSocketChannel,并且再初始化各自channel的Handler，相互隔离**
 
 下图描述了服务端从启动初始化到有新连接接入的变化过程：
 
