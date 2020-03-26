@@ -289,7 +289,8 @@ public class ConfigController {
                                 //通过持久化数据库获取
                                 configInfoBase = persistService.findConfigInfo4Tag(dataId, group, tenant, autoTag);
                             } else {
-                                //本地磁盘文件获取
+                                //本地磁盘文件获取;例如：
+                                //C:\Users\vison\nacos\data\tenant-config-data\b1092a4a-3b8d-4e33-8874-55cee3839c1f\DEFAULT_GROUP\dubbo.properties
                                 file = DiskUtil.targetTagFile(dataId, group, tenant, autoTag);
                             }
 
@@ -422,7 +423,7 @@ public class ConfigController {
 
 
 
-## 2.3 综合客户端/服务端解读长轮训源码
+## 1.3 综合客户端/服务端解读长轮训源码
 
 ​		我们知道客户端会有一个长轮训的任务去检查服务器端的配置是否发生了变化，如果发生了变更，那么客户端会拿到变更的 groupKey 再根据 groupKey 去获取配置项的最新值更新到本地的缓存以及文件中，那么这种每次都靠客户端去请求，那请求的时间间隔设置 多少合适呢？ 
 
@@ -758,9 +759,7 @@ public void onEvent(Event event) {
 
 ### 3) 服务端的数据变化
 
-​		那么接下来还有一个疑问是，数据变化之后是如何触发事件的呢？ 所以我们定位到数据变化的请求类 中，在ConﬁgController这个类中，找到POST请求的方法 找到配置变更的位置， 发现数据持久化之后，会通过EventDispatcher进行事件发布 EventDispatcher.fireEvent 但是这个事件似乎不是我们所关心的时间，原因是这里发布的事件是 ConfigDataChangeEvent , 而LongPollingService感兴趣的事件是 LocalDataChangeEvent
-
-
+​		那么接下来还有一个疑问是，数据变化之后是如何触发事件的呢？ 所以我们定位到数据变化的请求类 中，在ConﬁgController这个类中，找到POST请求的方法 找到配置变更的位置， 发现数据持久化之后，会通过EventDispatcher进行事件发布 EventDispatcher.fireEvent 但是这个事件似乎不是我们所关心的事件，原因是这里发布的事件是 ConfigDataChangeEvent , 而LongPollingService感兴趣的事件是 LocalDataChangeEvent
 
 ```java
   @PostMapping
@@ -808,6 +807,74 @@ public void init() {
     DumpAllBetaProcessor dumpAllBetaProcessor = new DumpAllBetaProcessor(this);
     DumpAllTagProcessor dumpAllTagProcessor = new DumpAllTagProcessor(this);
 	。。。。
+         try {
+            dumpConfigInfo(dumpAllProcessor);
+         ....
+         }
+}
+
+
+private void dumpConfigInfo(DumpAllProcessor dumpAllProcessor)
+    throws IOException {
+    int timeStep = 6;
+    Boolean isAllDump = true;
+    // initial dump all
+    FileInputStream fis = null;
+    Timestamp heartheatLastStamp = null;
+    try {
+        if (isQuickStart()) {
+            File heartbeatFile = DiskUtil.heartBeatFile();
+            if (heartbeatFile.exists()) {
+                fis = new FileInputStream(heartbeatFile);
+                String heartheatTempLast = IoUtils.toString(fis, Constants.ENCODE);
+                heartheatLastStamp = Timestamp.valueOf(heartheatTempLast);
+                if (TimeUtils.getCurrentTime().getTime()
+                    - heartheatLastStamp.getTime() < timeStep * 60 * 60 * 1000) {
+                    isAllDump = false;
+                }
+            }
+        }
+        if (isAllDump) {
+            LogUtil.defaultLog.info("start clear all config-info.");
+            DiskUtil.clearAll();
+            dumpAllProcessor.process(DumpAllTask.TASK_ID, new DumpAllTask());
+        } else {
+            Timestamp beforeTimeStamp = getBeforeStamp(heartheatLastStamp,
+                                                       timeStep);
+            DumpChangeProcessor dumpChangeProcessor = new DumpChangeProcessor(
+                this, beforeTimeStamp, TimeUtils.getCurrentTime());
+            dumpChangeProcessor.process(DumpChangeTask.TASK_ID, new DumpChangeTask());
+            Runnable checkMd5Task = () -> {
+                LogUtil.defaultLog.error("start checkMd5Task");
+                List<String> diffList = ConfigService.checkMd5();
+                for (String groupKey : diffList) {
+                    String[] dg = GroupKey.parseKey(groupKey);
+                    String dataId = dg[0];
+                    String group = dg[1];
+                    String tenant = dg[2];
+                    //这里比较服务端日志缓存和数据库的数据是否不同
+                    ConfigInfoWrapper configInfo = persistService.queryConfigInfo(dataId, group, tenant);
+                    ConfigService.dumpChange(dataId, group, tenant, configInfo.getContent(),
+                                             configInfo.getLastModified());
+                }
+                LogUtil.defaultLog.error("end checkMd5Task");
+            };
+            //这里有一个定时文件定时检查md5是否更新，否则就处罚LocalDataChange事件
+            TimerTaskService.scheduleWithFixedDelay(checkMd5Task, 0, 12,
+                                                    TimeUnit.HOURS);
+        }
+    } catch (IOException e) {
+        LogUtil.fatalLog.error("dump config fail" + e.getMessage());
+        throw e;
+    } finally {
+        if (null != fis) {
+            try {
+                fis.close();
+            } catch (IOException e) {
+                LogUtil.defaultLog.warn("close file failed");
+            }
+        }
+    }
 }
 ```
 
@@ -832,3 +899,317 @@ public void init() {
 
 
 ​	   所以总的来说，Nacos采用推+拉的形式，来解决最开始关于长轮训时间间隔的问题。当然，30s这个时 间是可以设置的，而之所以定30s，应该是一个经验值。
+
+
+
+## 1.4 服务端数据主动更新引起的数据变化
+
+举例：**CofigController**我们后台跟新配置中心的数据
+
+```java
+    @PostMapping
+    public Boolean publishConfig(HttpServletRequest request, HttpServletResponse response,  ...{
+		...
+			//这会在config_info更新记录和history_config_info存储一条历史记录
+            persistService.insertOrUpdateBeta(configInfo, betaIps, srcIp, srcUser, time, false);
+        	//主要是触发监听器 AsyncNotifyService的使用
+            EventDispatcher.fireEvent(new ConfigDataChangeEvent(true, dataId, group, tenant, time.getTime()));
+        。。。
+        ConfigTraceService.logPersistenceEvent(dataId, group, tenant, requestIpApp, time.getTime(),
+            LOCAL_IP, ConfigTraceService.PERSISTENCE_EVENT_PUB, content);
+
+        return true;
+    }
+```
+
+```java
+@Service
+public class AsyncNotifyService extends AbstractEventListener {   
+    ....
+	public void onEvent(Event event) {
+
+        // 并发产生 ConfigDataChangeEvent
+        if (event instanceof ConfigDataChangeEvent) {
+            ConfigDataChangeEvent evt = (ConfigDataChangeEvent) event;
+            long dumpTs = evt.lastModifiedTs;
+            String dataId = evt.dataId;
+            String group = evt.group;
+            String tenant = evt.tenant;
+            String tag = evt.tag;
+            List<?> ipList = serverListService.getServerList();
+
+            // 其实这里任何类型队列都可以
+            Queue<NotifySingleTask> queue = new LinkedList<NotifySingleTask>();
+            for (int i = 0; i < ipList.size(); i++) {
+                //注意NotifySingleTask中url的封装，这里会调用//v1/cs/communication/dataChange
+                queue.add(new NotifySingleTask(dataId, group, tenant, tag, dumpTs, (String) ipList.get(i), evt.isBeta));
+            }
+            //这里异步执行AysncTask的任务；这里也是处理上面队列中的任务；
+            EXECUTOR.execute(new AsyncTask(httpclient, queue));
+        }
+    }
+}
+```
+
+```java
+class AsyncTask implements Runnable {
+
+    public AsyncTask(CloseableHttpAsyncClient httpclient, Queue<NotifySingleTask> queue) {
+        this.httpclient = httpclient;
+        this.queue = queue;
+    }
+
+    @Override
+    public void run() {
+        executeAsyncInvoke();
+    }
+
+    private void executeAsyncInvoke() {
+        //遍历发送不同服务器的通知；通知消息更改了
+        while (!queue.isEmpty()) {
+            NotifySingleTask task = queue.poll();
+            String targetIp = task.getTargetIP();
+            if (serverListService.getServerList().contains(
+                targetIp)) {
+                // 启动健康检查且有不监控的ip则直接把放到通知队列，否则通知
+                if (serverListService.isHealthCheck()
+                    && ServerListService.getServerListUnhealth().contains(targetIp)) {
+                    // target ip 不健康，则放入通知列表中
+                    ConfigTraceService.logNotifyEvent(task.getDataId(), task.getGroup(), task.getTenant(), null,
+                                                      task.getLastModified(),
+                                                      LOCAL_IP, ConfigTraceService.NOTIFY_EVENT_UNHEALTH, 0, task.target);
+                    // get delay time and set fail count to the task
+                    asyncTaskExecute(task);
+                } else {
+                    HttpGet request = new HttpGet(task.url);
+                    request.setHeader(NotifyService.NOTIFY_HEADER_LAST_MODIFIED,
+                                      String.valueOf(task.getLastModified()));
+                    request.setHeader(NotifyService.NOTIFY_HEADER_OP_HANDLE_IP, LOCAL_IP);
+                    if (task.isBeta) {
+                        request.setHeader("isBeta", "true");
+                    }
+                    //发送通知 调用//v1/cs/communication/dataChange
+                    httpclient.execute(request, new AsyncNotifyCallBack(httpclient, task));
+                }
+            }
+        }
+    }
+```
+
+**CommunicationController**
+
+通过上面知道，如果配置中心数据变化，会在这个控制器中处理，而且上面会分别发送给不同的服务器中；
+
+```java
+/**
+ * 通知配置信息改变
+ */
+@GetMapping("/dataChange")
+public Boolean notifyConfigInfo(HttpServletRequest request,
+                                @RequestParam("dataId") String dataId, @RequestParam("group") String group,
+                                @RequestParam(value = "tenant", required = false, defaultValue = StringUtils.EMPTY)
+                                String tenant,
+                                @RequestParam(value = "tag", required = false) String tag) {
+    dataId = dataId.trim();
+    group = group.trim();
+    String lastModified = request.getHeader(NotifyService.NOTIFY_HEADER_LAST_MODIFIED);
+    long lastModifiedTs = StringUtils.isEmpty(lastModified) ? -1 : Long.parseLong(lastModified);
+    String handleIp = request.getHeader(NotifyService.NOTIFY_HEADER_OP_HANDLE_IP);
+    String isBetaStr = request.getHeader("isBeta");
+    if (StringUtils.isNotBlank(isBetaStr) && trueStr.equals(isBetaStr)) {
+        dumpService.dump(dataId, group, tenant, lastModifiedTs, handleIp, true);
+    } else {
+        //然后会执行这个dump操作
+        dumpService.dump(dataId, group, tenant, tag, lastModifiedTs, handleIp);
+    }
+    return true;
+}
+```
+
+然后DumpService
+
+```java
+ public void dump(String dataId, String group, String tenant, String tag, long lastModified, String handleIp,
+                     boolean isBeta) {
+        String groupKey = GroupKey2.getKey(dataId, group, tenant);
+     	//这里就会在TaskManager中把新建的dumpTask用Map存储起来
+
+        dumpTaskMgr.addTask(groupKey, new DumpTask(groupKey, tag, lastModified, handleIp, isBeta));
+    }
+```
+
+上面添加task流程就结束了；说明有一个后台线程不停的从这个队列中获取任务处理，所以我们全局查询tasks的使用；最终发现，在创建TaskManager的时候启动了一个precessingThread去处理该队列
+
+```java
+  public TaskManager(String name) {
+        this.name = name;
+        if (null != name && name.length() > 0) {
+            //创建了这个后台线程；
+            this.processingThread = new Thread(new ProcessRunnable(), name);
+        } else {
+            this.processingThread = new Thread(new ProcessRunnable());
+        }
+      	//设置为后台线程
+        this.processingThread.setDaemon(true);
+        this.closed.set(false);
+      	//开启任务了
+        this.processingThread.start();
+    }
+```
+
+**继续看ProcessRunnable**
+
+```java
+    class ProcessRunnable implements Runnable {
+
+        @Override
+        public void run() {
+            while (!TaskManager.this.closed.get()) {
+                try {
+                    //这里核心业务，休眠100毫秒继续处理
+                    Thread.sleep(100);
+                    TaskManager.this.process();
+                } catch (Throwable e) {
+                }
+            }
+
+        }
+
+    }
+
+
+protected void process() {
+        for (Map.Entry<String, AbstractTask> entry : this.tasks.entrySet()) {
+            AbstractTask task = null;
+            this.lock.lock();
+            try {
+                // 获取任务
+                task = entry.getValue();
+                if (null != task) {
+                    if (!task.shouldProcess()) {
+                        // 任务当前不需要被执行，直接跳过
+                        continue;
+                    }
+                    // 先将任务从任务Map中删除
+                    this.tasks.remove(entry.getKey());
+                    MetricsMonitor.getDumpTaskMonitor().set(tasks.size());
+                }
+            } finally {
+                this.lock.unlock();
+            }
+
+            if (null != task) {
+                // 获取任务处理器
+                TaskProcessor processor = this.taskProcessors.get(entry.getKey());
+                if (null == processor) {
+                    // 如果没有根据任务类型设置的处理器，使用默认处理器
+                    processor = this.getDefaultTaskProcessor();
+                }
+                if (null != processor) {
+                    boolean result = false;
+                    try {
+                        // 处理任务;这里是核心业务处理，默认使用DumpProcessor
+                        result = processor.process(entry.getKey(), task);
+                    } catch (Throwable t) {
+                        log.error("task_fail", "处理task失败", t);
+                    }
+                    if (!result) {
+                        // 任务处理失败，设置最后处理时间
+                        task.setLastProcessTime(System.currentTimeMillis());
+
+                        // 将任务重新加入到任务Map中
+                        this.addTask(entry.getKey(), task);
+                    }
+                }
+            }
+        }
+
+        if (tasks.isEmpty()) {
+            this.lock.lock();
+            try {
+                this.notEmpty.signalAll();
+            } finally {
+                this.lock.unlock();
+            }
+        }
+    }
+```
+
+所以又到了**DumpProcessor**处理该任务
+
+```java
+@Override
+public boolean process(String taskType, AbstractTask task) {
+    
+    ...
+    ConfigInfo cf = dumpService.persistService.findConfigInfo(dataId, group, tenant);
+    if (null != cf) {
+    result = ConfigService.dump(dataId, group, tenant, cf.getContent(), lastModified);
+
+}
+```
+
+最后又回到了**ConfigService.dump**
+
+```java
+/**
+  * 保存配置文件，并缓存md5.
+  */
+static public boolean dump(String dataId, String group, String tenant, String content, long lastModifiedTs) {
+    String groupKey = GroupKey2.getKey(dataId, group, tenant);
+    makeSure(groupKey);
+    final int lockResult = tryWriteLock(groupKey);
+    assert (lockResult != 0);
+
+    if (lockResult < 0) {
+        dumpLog.warn("[dump-error] write lock failed. {}", groupKey);
+        return false;
+    }
+
+    try {
+        final String md5 = MD5.getInstance().getMD5String(content);
+        //相同的话就不修改了
+        if (md5.equals(ConfigService.getContentMd5(groupKey))) {
+            dumpLog.warn(
+                "[dump-ignore] ignore to save cache file. groupKey={}, md5={}, lastModifiedOld={}, "
+                + "lastModifiedNew={}",
+                groupKey, md5, ConfigService.getLastModifiedTs(groupKey), lastModifiedTs);
+        } else if (!STANDALONE_MODE || PropertyUtil.isStandaloneUseMysql()) {
+            //这里就是我们本地的配置\nacos\data\tenant-config-data\b1092a4a-3b8d-4e33-8874-55cee3839c1f\DEFAULT_GROUP\dubbo.properties
+            DiskUtil.saveToDisk(dataId, group, tenant, content);
+        }
+        //更新内存数据和发送本地数据更新事件，对于客户端长轮训可以返回数据了
+        updateMd5(groupKey, md5, lastModifiedTs);
+        return true;
+    } catch (IOException ioe) {
+        dumpLog.error("[dump-exception] save disk error. " + groupKey + ", " + ioe.toString(), ioe);
+        if (ioe.getMessage() != null) {
+            String errMsg = ioe.getMessage();
+            if (NO_SPACE_CN.equals(errMsg) || NO_SPACE_EN.equals(errMsg) || errMsg.contains(DISK_QUATA_CN)
+                || errMsg.contains(DISK_QUATA_EN)) {
+                // 磁盘写满保护代码
+                fatalLog.error("磁盘满自杀退出", ioe);
+                System.exit(0);
+            }
+        }
+        return false;
+    } finally {
+        releaseWriteLock(groupKey);
+    }
+}
+
+```
+
+```java
+public static void updateMd5(String groupKey, String md5, long lastModifiedTs) {
+    //缓存更新
+    CacheItem cache = makeSure(groupKey);
+    if (cache.md5 == null || !cache.md5.equals(md5)) {
+        cache.md5 = md5;
+        cache.lastModifiedTs = lastModifiedTs;
+        //发送本地数据更新事件，对于客户端长轮训可以返回数据了
+        EventDispatcher.fireEvent(new LocalDataChangeEvent(groupKey));
+    }
+}
+```
+
