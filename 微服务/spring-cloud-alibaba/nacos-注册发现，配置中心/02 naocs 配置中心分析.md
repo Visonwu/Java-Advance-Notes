@@ -17,6 +17,17 @@
 
 nacos默认使用derby做配置数据存储，放在用户目录下；当然可以配置mysql做数据存储；
 
+**理解：**
+
+- nacos采用pull和'push'结合方式获取配置信息，采用长连接方式（超时）获取数据；
+  - 客户端长轮询，服务器如果配置数据没有更改会hang住这个请求29.5s;如果期间数据发生变化会直接返回数据
+  - 如果是集群条件下；客户端会选一个服务器连接，如果有一个失败了，会更新下一个服务器重新发起请求
+
+- 服务器配置中心数据更改了
+  - 数据发送时，先保存持久化的mysql数据，然后通过触发ConfigDataChangeEvent事件，
+  - 然后通过遍历所有的集群服务器节点ip信息,然后分别通过线程异步发送给所有服务器（CommunicaionController处理）当前数据更改了;
+  - 服务器拿到数据后会更新每一个服务器的本地日志缓存，以及内存中每一个dataId对应的md5值；最后还会触发LocalDataChangeEvent事件，通过hang住的客户端请求返回数据 
+
 
 
 ## 1.1 从客户端分析源码
@@ -96,9 +107,10 @@ public NacosConfigService(Properties properties) throws NacosException {
         namespace = namespaceTmp;
         properties.put(PropertyKeyConst.NAMESPACE, namespace);
     }
-    //这里创建代理连接服务器
-    agent = new ServerHttpAgent(properties);
-    //
+    //这里创建代理连接服务器，这里用了装饰设计模式，通过Metric-prometheus来统计rest 请求时长
+    agent = new MetricsHttpAgent(new ServerHttpAgent(properties));
+    //这个其实是针对endpoint设置才会起作用，这里简单说一下；
+    //通过nameServie命名服务获取serverList
     agent.start();
     //
     worker = new ClientWorker(agent, configFilterChainManager);
@@ -204,6 +216,53 @@ private String getConfigInner(String tenant, String dataId, String group, long t
     configFilterChainManager.doFilter(null, cr);
     content = cr.getContent();
     return content;
+}
+
+    public HttpResult httpGet(String path, List<String> headers, List<String> paramValues, String encoding,
+                              long readTimeoutMs) throws IOException {
+        final long endTime = System.currentTimeMillis() + readTimeoutMs;
+
+        boolean isSSL = false;
+
+        do {
+            try {
+                List<String> newHeaders = getSpasHeaders(paramValues);
+                if (headers != null) {
+                    newHeaders.addAll(headers);
+                }
+                //这里发起请求，注意这里服务器的url由来
+                HttpResult result = HttpSimpleClient.httpGet(
+                    getUrl(serverListMgr.getCurrentServerAddr(), path, isSSL), newHeaders, paramValues, encoding,
+                    readTimeoutMs, isSSL);
+                if (result.code == HttpURLConnection.HTTP_INTERNAL_ERROR
+                    || result.code == HttpURLConnection.HTTP_BAD_GATEWAY
+                    || result.code == HttpURLConnection.HTTP_UNAVAILABLE) {
+                    log.error("NACOS ConnectException", "currentServerAddr:{}. httpCode:",
+                        new Object[] {serverListMgr.getCurrentServerAddr(), result.code});
+                } else {
+                    return result;
+                }
+            } catch (ConnectException ce) {
+                //这里表示请求异常，会换一个服务器做请求
+    			serverListMgr.refreshCurrentServerAddr();            
+               .....
+    }
+```
+
+```java
+public ServerListManager{
+    ...
+	public String getCurrentServerAddr() {
+        //这里是通过list的选取的一个；当然这个是通过权重排序了的来获取url的；
+        if (StringUtils.isBlank(currentServerAddr)) {
+            currentServerAddr = iterator().next();
+        }
+        return currentServerAddr;
+    }
+    //这个就是在当前的url中请求失败后会change一个服务请求
+    public void refreshCurrentServerAddr() {
+        currentServerAddr = iterator().next();
+    }
 }
 ```
 

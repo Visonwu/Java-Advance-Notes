@@ -32,7 +32,213 @@ raft参考：<http://thesecretlivesofdata.com/raft/>
 
 
 
-**数据处理**
+**源码分析：**
+
+Server节点数据获取是通过ServerListManager从文件和内存数据读取以及比较来的
+
+```java
+public class ServerListManager{    
+	@PostConstruct
+    public void init() {
+        GlobalExecutor.registerServerListUpdater(new ServerListUpdater());
+        GlobalExecutor.registerServerStatusReporter(new ServerStatusReporter(), 2000);
+    }
+}
+```
+
+下面是Raft核心算法
+
+```java
+public class RaftCore {
+    
+        @PostConstruct
+    public void init() throws Exception {
+
+        Loggers.RAFT.info("initializing Raft sub-system");
+
+        executor.submit(notifier);
+
+        long start = System.currentTimeMillis();
+
+        raftStore.loadDatums(notifier, datums);
+			
+        setTerm(NumberUtils.toLong(raftStore.loadMeta().getProperty("term"), 0L));
+		....
+		//这里是一个定时任务负责master的选举
+        GlobalExecutor.registerMasterElection(new MasterElection());
+        //这个负责定时心跳处理，服务数据，待分析 todo
+        GlobalExecutor.registerHeartbeat(new HeartBeat());
+
+        Loggers.RAFT.info("timer started: leader timeout ms: {}, heart-beat timeout ms: {}",
+            GlobalExecutor.LEADER_TIMEOUT_MS, GlobalExecutor.HEARTBEAT_INTERVAL_MS);
+    }
+    
+}
+
+
+
+```
+
+**发起选举**
+
+```java
+ //Master的选举
+ public class MasterElection implements Runnable {
+        @Override
+        public void run() {
+            try {
+				//表示peers状态好了，这个是通过listerner监控获取的
+                if (!peers.isReady()) {
+                    return;
+                }
+
+                RaftPeer local = peers.local();
+                local.leaderDueMs -= GlobalExecutor.TICK_PERIOD_MS;
+
+                if (local.leaderDueMs > 0) {
+                    return;
+                }
+
+                // reset timeout
+                local.resetLeaderDue();
+                local.resetHeartbeatDue();
+				//发起选举
+                sendVote();
+            } catch (Exception e) {
+                Loggers.RAFT.warn("[RAFT] error while master election {}", e);
+            }
+
+        }
+
+        public void sendVote() {
+
+            RaftPeer local = peers.get(NetUtils.localServer());
+            Loggers.RAFT.info("leader timeout, start voting,leader: {}, term: {}",
+                JSON.toJSONString(getLeader()), local.term);
+
+            peers.reset();
+			//本地的term增加一
+            local.term.incrementAndGet();
+            //先投给自己
+            local.voteFor = local.ip;
+            //更新自己的状态
+            local.state = RaftPeer.State.CANDIDATE;
+
+            Map<String, String> params = new HashMap<>(1);
+            params.put("vote", JSON.toJSONString(local));
+            //发给除了自己所有其他服务节点
+            for (final String server : peers.allServersWithoutMySelf()) {
+                final String url = buildURL(server, API_VOTE);
+                try {
+                    //会请求RaftController的raft/vote接口做 处理；
+                    HttpClient.asyncHttpPost(url, null, params, new AsyncCompletionHandler<Integer>() {
+                        @Override
+                        public Integer onCompleted(Response response) throws Exception {
+                            if (response.getStatusCode() != HttpURLConnection.HTTP_OK) {
+                                Loggers.RAFT.error("NACOS-RAFT vote failed: {}, url: {}", response.getResponseBody(), url);
+                                return 1;
+                            }
+
+                            RaftPeer peer = JSON.parseObject(response.getResponseBody(), RaftPeer.class);
+
+                            Loggers.RAFT.info("received approve from peer: {}", JSON.toJSONString(peer));
+							//拿到投票结果，选举最终的leader
+                            peers.decideLeader(peer);
+
+                            return 0;
+                        }
+                    });
+                } catch (Exception e) {
+                    Loggers.RAFT.warn("error while sending vote to server: {}", server);
+                }
+            }
+        }
+    }
+}
+```
+
+```java
+//Raft节点集
+public class RaftPeerSet {
+      //投票选出leader
+      public RaftPeer decideLeader(RaftPeer candidate) {
+        peers.put(candidate.ip, candidate);
+
+        SortedBag ips = new TreeBag();
+        int maxApproveCount = 0;
+        String maxApprovePeer = null;
+        for (RaftPeer peer : peers.values()) {
+            if (StringUtils.isEmpty(peer.voteFor)) {
+                continue;
+            }
+
+            ips.add(peer.voteFor);
+            if (ips.getCount(peer.voteFor) > maxApproveCount) {
+                maxApproveCount = ips.getCount(peer.voteFor);
+                maxApprovePeer = peer.voteFor;
+            }
+        }
+		//当投票数量 总投票节点 过半，将该节点设置为leader
+        if (maxApproveCount >= majorityCount()) {
+            RaftPeer peer = peers.get(maxApprovePeer);
+            peer.state = RaftPeer.State.LEADER;
+		
+            if (!Objects.equals(leader, peer)) {
+                leader = peer;
+                //发布事件，leader已经选举完成了
+                applicationContext.publishEvent(new LeaderElectFinishedEvent(this, leader));
+                Loggers.RAFT.info("{} has become the LEADER", leader.ip);
+            }
+        }
+
+        return leader;
+    }
+    
+}
+```
+
+
+
+**RaftPeer**收到投票做处理
+
+```java
+public synchronized RaftPeer receivedVote(RaftPeer remote) {
+        if (!peers.contains(remote)) {
+            throw new IllegalStateException("can not find peer: " + remote.ip);
+        }
+
+        RaftPeer local = peers.get(NetUtils.localServer());
+    	//如果当前的term大于远程的term，返回本地的给远端作为投票返回
+        if (remote.term.get() <= local.term.get()) {
+            String msg = "received illegitimate vote" +
+                ", voter-term:" + remote.term + ", votee-term:" + local.term;
+
+            Loggers.RAFT.info(msg);
+            if (StringUtils.isEmpty(local.voteFor)) {
+                local.voteFor = local.ip;
+            }
+
+            return local;
+        }
+		//第一个收到就返回先收到的投票
+        local.resetLeaderDue();
+
+        local.state = RaftPeer.State.FOLLOWER;
+        local.voteFor = remote.ip;
+        local.term.set(remote.term.get());
+
+        Loggers.RAFT.info("vote {} as leader, term: {}", remote.ip, remote.term);
+
+        return local;
+    }
+
+```
+
+
+
+
+
+## 2.数据处理
 
 对于事务操作，请求会转发给leader
 非事务操作上，可以任意一个节点来处理
@@ -119,4 +325,6 @@ RaftCore
         }
     }
 ```
+
+
 

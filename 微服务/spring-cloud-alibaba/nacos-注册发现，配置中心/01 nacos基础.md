@@ -46,4 +46,14 @@ public class DemoController {
 }
 ```
 
+# 2. Nacos日志的坑
+
+​		Nacos默认是开启了acces-log日志的；如果没有必要可以关了，或者调整大小；否则你会发现你的磁盘很快就满了；
+
+```properties
+server.tomcat.accesslog.enabled=true
+server.tomcat.accesslog.pattern=%h %l %u %t "%r" %s %b %D %{User-Agent}i
+# default current work dir
+server.tomcat.basedir=
+```
 
