@@ -4,7 +4,13 @@
 
 ## 1.HDFS 相关原理
 
-​	三大组件：NameNode，SecondaryNameNode，DataNode
+HDFS的存储模型：
+
+![N6Yii6.png](https://s1.ax1x.com/2020/06/27/N6Yii6.png)
+
+
+
+​	**三大组件：**NameNode，SecondaryNameNode，DataNode
 
 - **NameNode：**
   - 存储元数据（文件名，创建时间，大小，权限，文件和block块的映射关系）
@@ -15,20 +21,34 @@
 
 ### 1.1 HDFS架构
 
+HDFS采用主从架构模型，先通过NameNode获取数据元信息，然后在根据元信息去某个节点获取具体的信息
+
 ![u9hucV.png](https://s2.ax1x.com/2019/09/22/u9hucV.png)
 
+![N6Yvff.png](https://s1.ax1x.com/2020/06/27/N6Yvff.png)
+
+----
 
 
-### 1.2 NameNode
+
+### 1.2 NameNode（NN）
+
+注意下面一点，NameNode数据只会存储在内存中，不会像数据库一样会存在磁盘交换，也就是说NameNode的内存是包含所有数据的，如果内存不够了那么NameNode就停止上传文件了。所这里hdfs的瓶颈就在nameNode。
+
+
+
+另外下面NameNode中保存块只保存了偏移量，**没有保存block的位置信息**，这个有dataNode通过心跳上报信息来恢复，如果有客户端请求如果发现这个位置上没有数据表示datanode没有启动起来，不存储位置信息的目的就是为了避免给出的位置信息，让客户端多次请求无用的datanode，，另外要同步所有的位置信息时间也是比较上的。这样说明了NameNode的重启的代价还是比较高的
+
+![N6tAkq.png](https://s1.ax1x.com/2020/06/27/N6tAkq.png)
 
 #### 1) 数据存储
 
 ​	数据存储放在hdfs-site.xml的`dfs.namenode.name.dir`属性配置中，默认`file://${hadoop.tmp.dir}/dfs/name`
 
-在服务器上存储的文件有如下几种：
+在服务器上持久化存储的文件有如下几种：
 
-- fsimage:镜像文件，存储某段时间内内存元数据信息和文件与Block块的映射关系
-- edits:编辑日志文件
+- fsimage:镜像文件，存储某段时间内内存元数据信息和文件与Block块的映射关系，位置信息不会存储
+- edits:对metadata操作的日志文件
 - seee_txid:操作事务id
 - VERSION：存储命名空间ID，集群等信息
 
@@ -38,13 +58,15 @@
 
 
 
-### 1.3 DataNode
+### 1.3 DataNode（DN）
+
+​		启动时会向NameNode汇报block信息，同时向NN发送心跳保持联系，如果NN10分钟没有收到心跳就认为其已经lost，然后会copy其上的block到其他的DN。
 
 #### 1) 数据存储
 
 ​    数据存储放在hdfs-site.xml的`dfs.datanode.data.dir`属性配置中，默认`file://${hadoop.tmp.dir}/dfs/data`，
 
-存储类容：数据本身和数据长度，校验和时间戳
+存储内容：数据本身和数据长度，校验和时间戳，还有block块的元信息
 
 **文件块（Block）**:基本的存储单元，默认大小是128M，通过`dfs.blocksize`配置，有点类似分片的概念
 
@@ -71,6 +93,10 @@
 
 ### 1.4 SecondaryNameNode
 
+SecondaryNameNode 第一代的产物，第二代没有了；
+
+不是NN的备份，主要工作是帮助NN合并edits log，减少NN启动时间
+
 #### 1）执行流程
 
 [![uCpiuD.png](https://s2.ax1x.com/2019/09/22/uCpiuD.png)](https://imgchr.com/i/uCpiuD)
@@ -84,6 +110,12 @@ SNN即SecondaryNameNode；NN即NameNode
 ### 1.5 HDFS数据读写流程
 
 #### 1）HDFS数据写入流程
+
+**HDFS副本放置策略：**
+	1.第一个副本放在上传文件的datanode上
+	2.第二个放在和第一个副本不同的机架上
+	3.第三个放在和第二个副本相同机架的节点上
+	4.其他随机节点（其他副本）
 
 [![uC9ry8.png](https://s2.ax1x.com/2019/09/22/uC9ry8.png)](https://imgchr.com/i/uC9ry8) 
 
@@ -127,6 +159,12 @@ command选项：
 
 ### 2.1 dfs常见命令
 
+​	命令和linux命令类似
+
+​	-D 可以加上我们常用的键值对设置对应的值，比如：
+
+-D dfs.blocksize=1048576   表示将block块设置为1M。
+
 ![uCFUnf.png](https://s2.ax1x.com/2019/09/22/uCFUnf.png)
 
 ![uCAMJH.png](https://s2.ax1x.com/2019/09/22/uCAMJH.png)
@@ -135,6 +173,12 @@ command选项：
 
 ![uCEhE8.png](https://s2.ax1x.com/2019/09/22/uCEhE8.png)
 
+
+
+### 2.3 HDFS文件权限
+	POSIX，和linxu文件权限类似：r,w,x
+	
+	那一个用户通过hadoop命令创建一个文件，那么这个文件的owner就是该用户
 
 
 ## 3. HDFS的Java操作
@@ -258,6 +302,14 @@ public class HdfsDemo {
 ```
 
 
+
+
+
+## 4.HDFS 的优缺点
+
+![N667Pe.png](https://s1.ax1x.com/2020/06/27/N667Pe.png)
+
+![N6cEq0.png](https://s1.ax1x.com/2020/06/27/N6cEq0.png)
 
 
 

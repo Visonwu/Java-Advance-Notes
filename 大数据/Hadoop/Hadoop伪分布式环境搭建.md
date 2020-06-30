@@ -1,5 +1,24 @@
 ```netstat -natlp```
 
+## 0.解读环境搭建
+
+```text
+1.操作系统环境准备:
+	1.1 依赖原件ssh，jdk
+	1.2 环境配置：java-home，免密钥 
+	1.3 时间同步（心跳需要解决时间问题），伪分布式不用，
+	1.4 hosts，hostname
+
+2.Hadoop配置:
+	2.1 /opt/vison/
+	2.2 配置文件修改：java-home （解决之前免密钥，远程执行不加载/etc/profile/环境变量的问题）
+	2.3 角色在哪里启动：配置文件需要反映出来（nameNode，dataNode，SecondaryNameNode）
+```
+
+从上面来看伪分布式是所有实例都是部署在同一个节点上的，所以上面的时间同步是不需要了，需要配置系统环境：java-home，免密钥，host，hostname。
+
+
+
 # 一、Hadoop伪分布式环境配置
 
 相关的配置信息我们都可以通过官网<https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/SingleCluster.html>查看：
@@ -16,15 +35,33 @@
 
 ## 1.配置启动HDFS
 
+**JAVA_HOME,HADOOP_HOME配置.**
+
+免密钥配置：
+
+```sh
+  $ ssh-keygen -t rsa -P '' -f ~/.ssh/id_rsa
+  $ cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+  $ chmod 0600 ~/.ssh/authorized_keys
+```
+
+
+
 ### 步骤一：文件配置
 
 **1）在`$HADOOP_HOME/etc/hadoop/core-site.xml`配置**
 
+注意配置：”hadoop.tmp.dir“：这个是放在linux的tmp临时目录中，很容易被清理掉
+
 ```xml
 <configuration>
     <property>
-        <name>fs.defaultFS</name>
+        <name>fs.defaultFS</name> <!--决定nameNode在哪个位置-->
         <value>hdfs://hadoop-senior01-test.com:8020</value>
+    </property>
+     <property>
+    	<name>hadoop.tmp.dir</name>
+    	<value>/var/vison/local</value>
     </property>
 </configuration>
 ```
@@ -51,15 +88,22 @@ $> vim /etc/hosts
 
 
 
-**2) 在`$HADOOP_HOME/etc/hadoop/hdfs-site.xml`配置hdfs的副本数，这里配置1即可**
+**2) 在`$HADOOP_HOME/etc/hadoop/hdfs-site.xml`配置hdfs的副本数，这里配置1即可，及SecondaryNameNode**
 
-```bash
+​		原因：伪分布式下只能设置为1，不然会一直提示异常，副本不能放在同一个节点上
+
+```xml
 <configuration>
         <property>
                 <name>dfs.replication</name>
                 <value>1</value>
         </property>
+        <property>		 <!--设置secondary地址-->
+   			<name>dfs.namenode.secondary.http-address</name>
+   			<value>hadoop-senior01-test.com:50090</value> 
+		 </property>
 </configuration>
+
 
 ```
 
@@ -75,18 +119,30 @@ export JAVA_HOME=/usr/local/jdk1.8.0_211
 
 
 
+**4) vim hadoop/etc/hadoop/slaves` 设置从节点，即设置DataNode节点的位置**
+
+#去掉原来的localhost
+
+```
+hadoop-senior01-test.com
+```
+
+
+
 ### 步骤二：启动HDFS
 
 **1） 格式化NameNode**
 
-​		清空NameNode目录下的所有数据，生成目录结构，初始化一些信息到文件中
+​		清空NameNode目录下的所有数据，生成目录结构，初始化一些信息到文件中；（格式化，清空所有元数据文件，然后新建一个fsimage文件和edits文件，集群文件，只有在第一次执行这个命令，后面服务重启不能在执行这个命令）
 
 ```bash
 # $HADOOP_HOME/bin下 可以通过hdfs --help 查看命令 ，我们配置了环境变量可以直接这样启动
-$ > sh  hdfs namenode format
+$ > sh  hdfs namenode -format
+
+# 成功后目录创建成功 。。。。has been successfully formatted.
 ```
 
-​	格式化后我们可以再`/tmp/hadoop-root/dfs/name/current`看到生成的相关文件
+​	格式化后我们可以再`/var/vison/local/dfs/name/current`看到生成的相关文件
 
 **2）启动NameNode,DataNode,SecondaryNameNode**
 
@@ -98,9 +154,24 @@ $ > sh start-dfs.sh
 	sbin/hadoop-daemon.sh start datanode
 	sbin/hadoop-daemon.sh start secondarynamenode
 	
-	
+# 会有如下日志生成，表示我们可以通过如下地址查看日志情况，另外日志是通过.log查看，不是通过.out看日志文件
+#hadoop-senior01-test.com: starting namenode, logging to /usr/local/hadoop-2.7.7/logs/hadoop-root-namenode-hadoop-senior01-test.com.out
+#hadoop-senior01-test.com: starting datanode, logging to /usr/local/hadoop-2.7.7/logs/hadoop-root-datanode-hadoop-senior01-test.com.out
+
+
+
+
 #然后启动会，应该会连续输入多次本机密码，通过jps查看是否所有节点都启动成功
 $> jps
+
+ # 创建/usr/root目录,客户端告诉hdfs是什么用户就是什么用户，这里默认是root，所以我们这里创建root目录
+$> hdfs dfs -mkdir -p /user/root  
+
+#上传文件
+$> hdfs dfs -put test.txt   
+
+#按照1M大小切分block块上传文件
+$> hdfs dfs -D dfs.blocksize 1048576 -put test.txt   
 ```
 
 **3）浏览器访问**
@@ -115,6 +186,12 @@ $> jps
 # $HADOOP_HOME/sbin下 ,一键启动三个节点
 $ > sh stop-dfs.sh
 ```
+
+
+
+**注：**
+
+​	hdfs默认按照block块大小拆分，默认180M分为1个块，不会区分文件某个字符切割成两半了，所以这些问题需要留给计算框架自己处理这些问题。
 
 
 

@@ -1,5 +1,24 @@
 这里的分布式就是：多个进程放到不同机器运行
 
+
+
+## 0.解读环境搭建
+
+```text
+1.操作系统环境准备:
+	1.1 依赖原件ssh，jdk
+	1.2 环境配置：java-home，免密钥
+	1.3 时间同步（心跳需要解决时间问题）
+	1.4 hosts，hostname
+
+2.Hadoop配置:
+	2.1 /opt/sxt/
+	2.2 配置文件修改：java-home （解决之前免密钥，远程执行不加载/etc/profile/环境变量的问题）
+	2.3 角色在哪里启动：配置文件需要反映出来
+```
+
+
+
 **机器规划**
 
 | 机器一        node1 192.168.124.152 | 机器二       node2 192.168.124.153 | 机器三     node3 192.168.124.154 |
@@ -117,12 +136,18 @@ $> crontab -e
 
 `hadoop/etc/hadoop/core-size.xml`
 
+​	注意配置：”hadoop.tmp.dir“：这个是放在linux的tmp临时目录中，很容易被清理掉，nameNode的持久化数据也是放在里面的。很重要
+
 ```xml
 <!-- 配置hdfs 配置当前机器node1为namenode -->
 <configuration>
   <property>
     <name>fs.defaultFS</name>
     <value>hdfs://node1:8020</value>
+  </property>
+  <property>  <!--设置数据存储目录-->
+    <name>hadoop.tmp.dir</name>
+    <value>/var/vison/local</value>
   </property>
 </configuration>
 ```
