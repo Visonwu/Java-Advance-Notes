@@ -171,14 +171,14 @@ $> hdfs dfs -mkdir -p /user/root
 $> hdfs dfs -put test.txt   
 
 #按照1M大小切分block块上传文件
-$> hdfs dfs -D dfs.blocksize 1048576 -put test.txt   
+$> hdfs dfs -D dfs.blocksize=1048576 -put test.txt   
 ```
 
 **3）浏览器访问**
 
-​	然后本地浏览器访问 `${ip}:50070` , 这里的50070是Http协议的端口号，上面自己配置的8020是节点间通信的RPC端口号,查看hdfs的管理页面
+​	然后本地浏览器访问 `${ip}:50070` , 这里的50070是Http协议的端口号，上面自己配置的8020是节点间通信的RPC端口号,查看hdfs的管理页面 
 
-
+可以通过Utiities/Browes the file system 查看hdfs的文件信息
 
 **4) 停止节点**
 
@@ -199,7 +199,7 @@ $ > sh stop-dfs.sh
 
 ## 2.配置启动yarn
 
-​	配置文件都在`$HADOOP_HOME/etc/hadoop/`进行操作
+​	配置文件都在`$HADOOP_HOME/etc/hadoop/`进行操作，yarn是用来做计算的资源管理。
 
 **1）配置mapreduce**
 
@@ -221,7 +221,7 @@ $> vim mapred-site.xml
 
 
 
-**2）配置yarn-size.xml文件**
+**2）配置yarn-site.xml文件**
 
 ```xml
 <configuration>

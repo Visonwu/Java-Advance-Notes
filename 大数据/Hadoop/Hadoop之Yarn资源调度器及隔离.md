@@ -1,5 +1,7 @@
 ## 1.资源调度器
 
+![NXi0fA.png](https://s1.ax1x.com/2020/07/03/NXi0fA.png)
+
 不同版本的hadoop的默认不同，`apache`默认Capacity, `CDH版本`使用Fair Scheduler具体看配置
 
 - **FIFO Scheduler：**

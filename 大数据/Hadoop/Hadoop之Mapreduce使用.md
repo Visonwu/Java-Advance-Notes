@@ -1,6 +1,4 @@
-
-
-
+# 一、MapReduce架构
 
 ## 1.MapReduce的整体执行流程
 
@@ -16,13 +14,163 @@
 5.输出文件
 ```
 
+**简单图示：**
+
 ![ux2HK0.png](https://s2.ax1x.com/2019/10/13/ux2HK0.png)
+
+**详细图示：**
+
+![NOShZj.png](https://s1.ax1x.com/2020/07/03/NOShZj.png)
+
+上面的两个不同的框代表不同的进程处理，一般放在不同的服务器上便于进程一直处理。
+
+注意：
+
+- 上面最开始block分成（合成）切片（1:1,1:N,N:1），然后切片和map的映射是1:1
+
+- 每一个map做了对于map映射生成一个中间集（key,value,partion）然后进行排序，每一小块就是内部有序外部无序状态
+
+  - 由于map这个步骤可以做许多优化，比如map在切分一小块排序放在缓存区上，然后通过合并这一块存储在磁盘上
+  - 有可能map完成后有大量的数据，可能会造成shuffle拉取数据量过大，可以先在map进程中先做一次reduce操作，将重复的数据合并一次减少数据传输量
+
+- shuffle过程将排序后的数据分别将属于不同的partion拉取到不同的reduce节点上，然后通过遍历拉取到的数据进行reduce。相同 的key一组，调用一次reduce方法迭代这一组数据进行计算
+
+  
+
+```
+map:
+   读懂数据
+   映射为K,V模型
+   并行分布式
+   计算向数据移动
+
+reduce：
+   数据全量或者分量加工
+   reduce可以包含不同的key
+   相同的key汇聚到一个reduce中
+   相同的key调用一次reduce方法
+	 -排序实现key的汇聚
+	 
+reduce强依赖map的排序，map是什么排序，reduce就必须通过相同的排序做聚合
+
+K,V使用自定义的数据类型：
+   作为参数传递，节省开发程度，提高程序自由度
+   Writable序列化：使能分布式程序数据交互
+   Comparable比较强：实现具体排序（字典序，数值序等）
+---------------------------------------------------
+
+block:split:map:reduce:partion比例：
+	block:split
+		1:1
+		N:1
+		1:N
+	split:map
+		1:1
+	map:reduce
+		N:1
+		N:N
+		1:1
+		1:N
+	group(key):partion 
+		1:1
+		N:1
+		N:N
+		1:N 错误 违背规则
+	partion -> outputfile
+
+
+
+```
+
+
+
+## 2. 运行架构
+
+### 2.1 Hadoop  1.x版本架构
+
+![NOVbND.png](https://s1.ax1x.com/2020/07/03/NOVbND.png)
+
+```text
+MapReduce 1.0版本角色:
+- JobTracker
+	●核心，主节点,单点
+	●调度所有的作业
+	●监控整个集群的资源负载
+- TaskTracker
+	●从节点，自身节点资源管理
+	●和JobTracker心跳， 汇报资源，获取Task
+- Client
+	●作业为单位
+	●规划作业计算分布
+	●提交作业资源到HDFS
+	●最终提交作业到JobTracker
+	
+弊端:
+	● JobTracker: 负载过重，单点故障
+	●资源管理与计算调度强耦合，其他计算框架需要重复实现资源管理
+	●不同框架对资源不能全局管理
+
+client将作业（jar包和相关计算配置等）提交到HDFS中，然后各自的TaskTracker获取task
+```
+
+
+
+### 2.2 Hadoop  2.x版本架构
+
+使用yarn做来资源管理解决1.x的问题。
+
+![NXi0fA.png](https://s1.ax1x.com/2020/07/03/NXi0fA.png)
+
+
+
+步骤1：用户将应用程序提交到 ResourceManager 上；
+
+步骤2：ResourceManager 为应用程序 ApplicationMaster 申请资源，并与某个 NodeManager 通信启动第一个 Container，以启动ApplicationMaster；
+
+步骤3：ApplicationMaster 与 ResourceManager 注册进行通信，为内部要执行的任务申请资源，一旦得到资源后，将于 NodeManager 通信，以启动对应的 Task；
+
+步骤4：所有任务运行完成后，ApplicationMaster 向 ResourceManager 注销，整个应用程序运行结束。
+
+
+
+上图有两个Client，那么会启动两个Application master做任务调度container，注意上面不同的颜色表示不同的任务。
+
+```text
+●mapreduce 2.x版本运行在 On YARN
+- YARN: 解耦资源与计算
+	●ResourceManager
+		-主节点，核心
+		-集群节点资源管理
+	●NodeManager
+		-与RM汇报资源
+		-管理Container生命周期
+		-计算框架中的角色都以Container表示
+	●Container: [节点NM, CPU,MEM,I/O大小， 启动命令]
+		-默认NodeManager启动线程监控Container大小， 超出申请资源额度，kill
+		-支持Linux内核的Cgroup
+- MR(MapReduce):
+	●MR-ApplicationMaster- Container
+		-作业为单位， 避免单点故障，负载到不同的节点,挂掉在重新启动一个，不同作业有不同的AM
+		-创建Task需要和RM申请资源 (Container)
+	●Task-Container
+- Client:
+	●RM-Client: 请求资源创建AM
+	●AM-Client: 与AM交互
+```
+
+
+
+
+
+# 二、案例
+
+
 
 ### 1.1 案例 - WordCount
 
 单词统计的计算流程如下所示：
 
-![ux2XaF.png](https://s2.ax1x.com/2019/10/13/ux2XaF.png)
+![NOSHzT.png](https://s1.ax1x.com/2020/07/03/NOSHzT.png)
 
 
 

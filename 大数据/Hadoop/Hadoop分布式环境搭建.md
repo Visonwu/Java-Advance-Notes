@@ -12,7 +12,7 @@
 	1.4 hosts，hostname
 
 2.Hadoop配置:
-	2.1 /opt/sxt/
+	2.1 /opt/vison/
 	2.2 配置文件修改：java-home （解决之前免密钥，远程执行不加载/etc/profile/环境变量的问题）
 	2.3 角色在哪里启动：配置文件需要反映出来
 ```
@@ -134,7 +134,7 @@ $> crontab -e
 
 **步骤四：在node1节点中的配置文件中配置**
 
-`hadoop/etc/hadoop/core-size.xml`
+`hadoop/etc/hadoop/core-site.xml`
 
 ​	注意配置：”hadoop.tmp.dir“：这个是放在linux的tmp临时目录中，很容易被清理掉，nameNode的持久化数据也是放在里面的。很重要
 
@@ -152,7 +152,7 @@ $> crontab -e
 </configuration>
 ```
 
-`hadoop/etc/hadoop/hdfs-size.xml`
+`hadoop/etc/hadoop/hdfs-site.xml`
 
 ```xml
 <!-- 配置node3为secondearyNameNode -->
@@ -164,7 +164,17 @@ $> crontab -e
 </configuration>
 ```
 
-`hadoop/etc/hadoop/core-size.xml`
+`$> vim hadoop/etc/hadoop/slaves` 设置从节点，即设置DataNode和NodeManage节点的位置
+
+#去掉原来的localhost
+
+```xml
+node1
+node2
+node3
+```
+
+`hadoop/etc/hadoop/core-site.xml`，这里配置yarn信息
 
 ```xml
 <configuration>
@@ -184,7 +194,7 @@ $> crontab -e
 
 `$> cp mapred-site.xml.template  mapred-site.xml`
 
-`$> vim hadoop/etc/hadoop/mapred-size.xml`
+`$> vim hadoop/etc/hadoop/mapred-site.xml`
 
 ```xml
  <!-- 设置yarn 作为环境调度-->
@@ -196,15 +206,7 @@ $> crontab -e
 </configuration>
 ```
 
-`$> vim hadoop/etc/hadoop/slaves` 设置从节点，即设置DataNode和NodeManage节点的位置
 
-#去掉原来的localhost
-
-```xml
-node1
-node2
-node3
-```
 
 **步骤五：将node1节点中的配置文件copy到其他node2/node3**
 

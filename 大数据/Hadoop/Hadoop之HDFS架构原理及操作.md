@@ -213,41 +213,57 @@ command选项：
 </configuration>
 ```
 
-**相关API如下：**
+### 3.1 相关API
+
+
+
+**访问权限：**		
+
+- 如果不能访问这个端口，那么需要允许这个端口允许外部访问
+  	/etc/hosts 中配置 0.0.0.0 node1  #node1是使用的hostname
+  	如果是root用户创建，那么只有root有权限修改
+- 本地java访问配置用户，客户端告诉服务器自己是什么身份
+     配置环境变量或者JVM变量HADOOP_USER_NAME=root 
 
 ​	只有一部分，可以对照命令相关的API都有
 
 ```java
-package com.visno.hdfs;
+package com.vison.hdfs;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IOUtils;
-import sun.awt.geom.AreaOp;
 
 import java.io.IOException;
-import java.net.CacheRequest;
-import java.net.URI;
-import java.net.URISyntaxException;
 
 /**
  * @author Vison
- * @date 2019/9/25 20:04
+ * @date 2020/7/2 14:35
  * @Version 1.0
  */
 public class HdfsDemo {
-	
+
     //这个地址就是nameserver的地址，即core.site.xml中fs.defaultFS的值
-    private static final String HDFA_PATH = "hdfs://192.168.124.158:8020";
+   // private static final String HDFA_PATH = "hdfs://192.168.124.158:8020";
     private FileSystem  fileSystem= null;
 
 
     public void setUp()  {
         Configuration configuration = new Configuration();
-        configuration.set("fs.defaultFS","hdfs://192.168.124.158:8020");
+        configuration.set("fs.defaultFS","hdfs://192.168.4.131:9000");
+
+        //如果不添加这个，无法和datanode通信导致上传文件不成功；
+        //另外可以通信的话，如果nameNode和dataNode使用内网ip通信，那么本地获取的是内网ip(host)
+        //那么需要配置本地hosts文件做ip映射，比如我的是本地虚拟机的通过node1的通信，我直接配置了 192.168.4.131 node1
+        configuration.set("dfs.client.use.datanode.hostname","true");
+
+        // 这里用于测试，设置块的大小为1M
+        configuration.set("dfs.block.size","1048576"); 
         try {
             //URI uri = new URI(HDFA_PATH);
             fileSystem =  FileSystem.get(configuration);
@@ -257,6 +273,67 @@ public class HdfsDemo {
         }
     }
 
+
+    /**
+     * 获取块大小
+     * @param path
+     * @return
+     * @throws IOException
+     */
+    public  long getDefaultBlockSize(String path) throws IOException {
+        try {
+            return fileSystem.getDefaultBlockSize(new Path(path));
+        }finally {
+            fileSystem.close();
+        }
+    }
+
+    /**
+     * 删除文件
+     * @param path
+     * @throws IOException
+     */
+    public  boolean delete(String path) throws IOException {
+        try {
+            return fileSystem.delete(new Path(path), false);
+        }finally {
+            fileSystem.close();
+        }
+    }
+
+    /**
+     * 获取块位置
+     * @param path
+     * @return
+     * @throws IOException
+     */
+    public  void getFileBlockLocations(String path) throws IOException {
+        try {
+            FileStatus fileStatus = fileSystem.getFileStatus(new Path(path));
+
+            BlockLocation[] blks = fileSystem.getFileBlockLocations(fileStatus, 0, fileStatus.getLen());
+            for (BlockLocation blk : blks) { //查看块信息
+                System.err.println("--------"+blk);
+                //会打印出类似如下
+                // 起始位置  长度    块存储的节点名
+                // 0,      1048576,node1
+                // 1048576,1048576,node1
+                // 2097152,1048576,node1
+                // 3145728,1048576,node1
+                // 4194304,1048576,node1
+                // 5242880,1048576,node1 ...
+            }
+        }finally {
+            fileSystem.close();
+        }
+    }
+
+    /**
+     * 创建目录
+     * @param path
+     * @return
+     * @throws IOException
+     */
     public boolean mkdir(String path) throws IOException {
         try {
             return fileSystem.mkdirs(new Path(path));
@@ -264,6 +341,13 @@ public class HdfsDemo {
             fileSystem.close();
         }
     }
+
+    /**
+     *
+     * @param name
+     * @return
+     * @throws Exception
+     */
     public boolean create(String name) throws Exception{
         try(FSDataOutputStream fos = fileSystem.create(new Path(name))) {
             fos.write("hello world".getBytes());
@@ -274,6 +358,11 @@ public class HdfsDemo {
         return true;
     }
 
+    /**
+     * 下载文件
+     * @param name
+     * @throws Exception
+     */
     public void open(String name)throws Exception{
         try(FSDataInputStream fis = fileSystem.open(new Path(name))){
             IOUtils.copyBytes(fis,System.out,1024);
@@ -282,23 +371,62 @@ public class HdfsDemo {
         }
     }
 
-    public void copyFromLocalFile()throws Exception{
-        fileSystem.copyFromLocalFile(new Path("C:\\Users\\vison\\Desktop\\文件\\批处理执行灵活IP.cmd"),
-                new Path("/vison/")); //Windows系统和Linux系统都可以，写法不一样
+    /**
+     * 上传文件
+     * @throws Exception
+     */
+    public void copyFromLocalFile(String from,String toPath)throws Exception{
+        try {
+            fileSystem.copyFromLocalFile(new Path(from),
+                    new Path(toPath)); //Windows系统和Linux系统都可以，写法不一样
+        }finally {
+            fileSystem.close();
+        }
     }
 
 
     public static void main(String[] args) throws Exception{
+        System.setProperty("HADOOP_USER_NAME","root"); //设置当前用户是root用户
         HdfsDemo hdfsDemo = new HdfsDemo();
         hdfsDemo.setUp();
 //        boolean bool = hdfsDemo.mkdir("/vison");
 //        System.out.println(bool);
 //        boolean bool = hdfsDemo.create("/vison/v1.txt");
 //        hdfsDemo.open("/vison/v1.txt");
-        hdfsDemo.copyFromLocalFile();
+        //上传
+        hdfsDemo.copyFromLocalFile("D:\\software\\nginx\\html\\wemew\\app\\market-release.apk","/vison");
+        //删除
+      // boolean delete = hdfsDemo.delete("/vison/market-release.apk");
+//        System.out.println("result: "+delete);
+
+        //查看块位置
+        //hdfsDemo.getFileBlockLocations("/user/root/hadoop-2.7.7.tar.gz");
+        //获取块大小
+//        long defaultBlockSize = hdfsDemo.getDefaultBlockSize("/user/root/hadoop-2.7.7.tar.gz");
+//        System.out.println(defaultBlockSize);
+
     }
 }
+```
 
+### 3.2 异常
+
+```xml
+Exception in thread "main" org.apache.hadoop.ipc.RemoteException(java.io.IOException): File /vison/market-release.apk could only be replicated to 0 nodes instead of minReplication (=1).  There are 1 datanode(s) running and 1 node(s) are excluded in this operation.
+	at org.apache.hadoop.hdfs.server.blockmanagement.BlockManager.chooseTarget4NewBlock(BlockManager.java:1620)
+	at org.apache.hadoop.hdfs.server.namenode.FSNamesystem.getNewBlockTargets(FSNamesystem.java:3135)
+。。。。
+```
+
+
+
+问题解决：
+
+```java
+//1.如果不添加这个，无法和datanode通信导致上传文件不成功；
+ //2.需要配置本地hosts文件做ip映射；如果nameNode和dataNode使用内网ip(hostname)通信，那么本地获取的是内网ip(hostname)
+// 那么需要配置本地hosts文件做ip映射，比如我的是本地虚拟机的通过node1的通信，我直接配置了 192.168.4.131 node1
+configuration.set("dfs.client.use.datanode.hostname","true");
 ```
 
 
