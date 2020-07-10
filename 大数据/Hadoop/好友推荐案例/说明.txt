@@ -1,0 +1,18 @@
+
+
+编译后的class文件的 com包外，通过 `jar -cvf whether.jar .` 打包为whether.jar
+
+服务器上执行：
+hadoop jar friends.jar com.vison.friends.FriendsBootstrap file:/usr/local/hadoop-2.7.7/friends.txt file:/usr/local/hadoop-2.7.7/friendsoutput
+
+案例执行结果：
+cat:hadoop	2
+cat:hello	2
+cat:mr	1
+cat:world	1
+hadoop:hello	3
+hadoop:mr	1
+hive:tom	3
+mr:tom	1
+mr:world	2
+tom:world	2
