@@ -13,7 +13,7 @@ public class WhetherSortComparator  extends WritableComparator {
 
 
     public WhetherSortComparator() {
-        super(Whether.class,true); //保证下面可以强制，实例化为对象
+        super(Whether.class,true);
     }
 
     @Override
@@ -21,15 +21,12 @@ public class WhetherSortComparator  extends WritableComparator {
         Whether whether1 = (Whether)a;
         Whether whether2 = (Whether)b;
 
-		//按照年月温度排序
         int c1 = whether1.getYear() - whether2.getYear();
         if (c1==0){
             int c2 = whether1.getMonth() - whether2.getMonth();
             if (c2 == 0){
-            
-                //温度采用降序排序，其他日期用升序
-                return -(whether1.getTemp() - whether2.getTemp());
-              
+                    //温度采用降序排序，其他日期用升序
+                    return -(whether1.getTemp() - whether2.getTemp());
             }
             return c2;
         }
