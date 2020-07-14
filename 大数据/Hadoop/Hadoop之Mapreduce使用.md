@@ -71,14 +71,14 @@ block:split:map:reduce:partion比例：
 		N:N
 		1:1
 		1:N
-	group(key):partion 
+	group(key):partition 
 		1:1
 		N:1
 		N:N
 		1:N 错误 违背规则
-	partion -> outputfile
+	partition -> outputfile
 
-
+reduce个数匹配partition
 
 ```
 

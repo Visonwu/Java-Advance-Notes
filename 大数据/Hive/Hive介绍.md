@@ -1,5 +1,3 @@
-
-
 # 1.Hive介绍
 
 ## 1.1 Hive是一个数据仓库软件
@@ -312,7 +310,11 @@ public class HiveJdbc {
     hive.log.dir = /user/local/hive-1.2.1/logs
     ```
 
-    
+- hive的查询输出显示列名，进入hive cli后：
+
+  - `set hive.cli.print.header=true;`
+
+
 
 # 4.hive常用的交互参数
 
@@ -425,7 +427,7 @@ songsong,bingbing_lili,xiao song:18_xiaoxiao song:19,hui long guan_beijing
 yangyang,caicai_susu,xiao yang:18_xiaoxiao yang:19,chao yang_beijing
 
 # load 的使用，如下
-hive > load  data local 'inputpath' 'hdfs-path' table person
+hive > load  data local inpath 'hdfs-path' into table person(表名)
 
 # 访问,map,array,struct的数据获取方式对应
 hive> select friends[1],children[xiaohong],address.street from person where name ='zhangshan' 
@@ -491,19 +493,362 @@ hive> select friends[1],children[xiaohong],address.street from person where name
 
 
 
-## 6.2 Hive的管理表和外部表
+## 6.2 Hive的表操作
+
+**1.增**
+
+```shell
+CREATE [EXTERNAL] TABLE [IF NOT EXISTS] table_name 
+[(col_name data_type [COMMENT col_comment], ...)]   //表中的字段信息
+[COMMENT table_comment] //表的注释
+
+[PARTITIONED BY (col_name data_type [COMMENT col_comment], ...)]    // 创建分区表 
+[CLUSTERED BY (col_name, col_name, ...) 							//分桶表
+[SORTED BY (col_name [ASC|DESC], ...)] INTO num_buckets BUCKETS]   //分桶后排序
+
+[ROW FORMAT row_format]  // 表中数据每行的格式，定义数据字段的分隔符，集合元素的分隔符等
+
+[STORED AS file_format] //表中的数据要以哪种文件格式来存储，默认为TEXTFILE（文本文件）
+					可以设置为SequnceFile或 Paquret,ORC等
+[LOCATION hdfs_path]  //表在hdfs上的位置
+
+
+其他建表：
+			只复制表结构：  create table 表名 like  表名1   //包含分区表
+			执行查询语句，将查询语句查询的结果(包含你返回的分区列)，按照顺序作为新表的普通列：create table 表名  as select 语句    //不能创建分区表！
+			
+```
+
+	①建表时，不带EXTERNAL，创建的表是一个MANAGED_TABLE(管理表，内部表)
+		建表时，带EXTERNAL，创建的表是一个外部表！
+	
+	外部表和内部表的区别是： 
+			内部表(管理表)在执行删除操作时，会将表的元数据(schema)和表位置的数据一起删除！
+			外部表在执行删除表操作时，只删除表的元数据(schema)
+			
+	在企业中，创建的都是外部表！在hive中表是廉价的，数据是珍贵的！
+			
+	建表语句执行时： 
+			hive会在hdfs生成表的路径；
+			hive还会向MySQl的metastore库中掺入两条表的信息(元数据)
+			
+	管理表和外部表之间的转换：
+		将表改为外部表：	alter table p1 set tblproperties('EXTERNAL'='TRUE');
+				
+		将表改为管理表：	alter table p1 set tblproperties('EXTERNAL'='FALSE');
+		
+		注意：在hive中语句中不区分大小写，但是在参数中严格区分大小写！
+
+**2.删**
+
+```
+	drop table 表名：删除表
+	truncate table 表名：清空管理表，不删除表
+```
+
+**3.改**
+
+```
+改表的属性：  alter table 表名 set tblproperties(属性名=属性值)
+		
+对列进行调整：
+	改列名或列类型： alter table 表名 change [column] 旧列名 新列名 新列类型 [comment 新列的注释]  					[FIRST|AFTER column_name] //调整列的顺序
+								 
+     添加列和重置列：ALTER TABLE table_name ADD|REPLACE COLUMNS (col_name data_type [COMMENT col_comment], ...) 
+
+```
+
+**4.查**
+
+```
+		desc  表名： 查看表的描述
+		desc formatted 表名： 查看表的详细描述
+```
 
 
 
 ## 6.3 Hive建表语句的其他属性
 
+### 6.3.1 分区
+
+`[PARTITIONED BY (col_name data_type [COMMENT col_comment], ...)] `
 
 
 
+**1.分区表**
+
+​	在建表时，指定了`PARTITIONED BY` ，这个表称为分区表
+
+**2.分区概念**
+
+MR：  在MapTask输出key-value时，为每个key-value计算一个区号，同一个分区的数据，会被同一个reduceTask处理
+			这个分区的数据，最终生成一个结果文件！
+			通过分区，将MapTask输出的key-value经过reduce后，分散到多个不同的结果文件中！
+
+​	
+
+Hive:  将表中的数据，分散到表目录下的多个子目录(分区目录)中
 
 
 
+**3.分区意义**
 
+​	分区的目的是为了就数据，分散到多个子目录中，在执行查询时，可以只选择查询某些子目录中的数据，加快查询效率！
+
+	- 只有分区表才有子目录(分区目录)
+	-  分区目录的名称由两部分确定：  分区列列名=分区列列值
+
+- 将输入导入到指定的分区之后，数据会附加上分区列的信息！
+- 分区的最终目的是在查询时，使用分区列进行过滤！	
+
+
+
+**4.创建分区表**
+
+```mysql
+-- 创建分区area
+create external table if not exists default.deptpart1(
+deptno int,
+dname string,
+loc int
+)
+PARTITIONED BY(area string)
+row format delimited fields terminated by '\t';
+
+
+
+-- 多级分区表，有多个分区字段 area,province
+create external table if not exists default.deptpart2(
+deptno int,
+dname string,
+loc int)
+PARTITIONED BY(area string,province string)
+row format delimited fields terminated by '\t';
+
+
+-- 指定localtion--文件在hdfs的存储位置
+create external table if not exists default.deptpart3(
+deptno int,
+dname string,
+loc int)
+PARTITIONED BY(area string)
+row format delimited fields terminated by '\t'
+location 'hdfs://hadoop101:9000/deptpart3';
+
+
+
+① alter table 表名 add partition(分区字段名=分区字段值) ;
+			a)在hdfs上生成分区路径
+			b)在mysql中metastore.partitions表中生成分区的元数据
+② 直接使用load命令向分区加载数据，如果分区不存在，load时自动帮我们生成分区
+
+
+-- 修复分区，元数据删除了，通过msck 可以修复分区
+③ 如果数据已经按照规范的格式，上传到了HDFS，可以使用修复分区命令自动生成分区的元数据
+		msck repair table 表名;	
+        
+        
+注意事项：
+	①如果表是个分区表，在导入数据时，必须指定向哪个分区目录导入数据
+	②如果表是多级分区表，在导入数据时，数据必须位于最后一级分区的目录        
+```
+
+
+
+使用比如导入数据
+
+```shell
+# 将本地department1.txt 导入表deptpart1中
+hive-1.2.2> hive -d t=/usr/local/hive-1.2.2/department1.txt
+hive> load data local inpath '${t}' into table deptpart1 partition (area='sichuan');
+```
+
+
+
+**6.分区的查询**
+		`show partitions 表名`
+		
+
+### 6.3.2 分桶
+
+​	分桶是用表字段和分区不同。
+
+```shell
+[CLUSTERED BY (col_name, col_name, ...) 
+		分桶的字段，是从表的普通字段中来取
+[SORTED BY (col_name [ASC|DESC], ...)] INTO num_buckets BUCKETS] 
+```
+
+
+
+**1.分桶表**
+
+​	建表时指定了CLUSTERED BY，这个表称为分桶表！
+
+​	分桶：  和MR中分区是一个概念！ 把数据分散到多个文件中！
+
+**2.分桶的意义**
+
+​	分桶本质上也是为了分散数据！在分桶后，可以结合hive提供的抽样查询，只查询指定桶的数据
+
+**3.分桶排序**
+
+​		在分桶时，也可以指定将每个桶的数据根据一定的规则来排序；如果需要排序，那么可以在CLUSTERED BY后跟SORTED BY
+
+
+
+**4.分桶表操作**
+
+```mysql
+-- 创建分桶表
+create table stu_buck(id int, name string)
+clustered by(id) 
+SORTED BY (id desc)
+into 4 buckets
+row format delimited fields terminated by '\t';
+
+-- 由于分桶表需要排序，所以需要通过map-reduce执行一次 所以创建一个 临时表
+create table stu_buck_tmp(id int, name string)
+row format delimited fields terminated by '\t';
+
+
+
+-- 导入数据
+	向分桶表导入数据时，必须运行MR程序，才能实现分桶操作！
+	load的方式，只是执行put操作，无法满足分桶表导入数据！
+	必须执行insert into 
+		insert into 表名 values(),(),(),()
+		insert into 表名 select 语句
+		
+	
+	导入数据之前：
+			需要打开强制分桶开关： set hive.enforce.bucketing=true;
+			需要打开强制排序开关： set hive.enforce.sorting=true;
+	
+	
+-- 先load 数据进入stu_buck_tmp 表中，然后通过insert .. select 操作完成   
+load data local inpath '/usr/local/buck.txt' into table stu_back;
+insert into table stu_buck select * from stu_buck_tmp
+```
+
+
+
+# 7.Hive的DML操作
+
+## 7.1 DML导入
+
+**1.load** : 作用将数据直接加载到表目录中
+
+```mysql
+语法：  load  data [LOCAL] inpath 'xx' [OVERWRITE] into table 表名 [PARTITION (partcol1=val1, partcol2=val2 ...)]
+			LOCAL:  如果导入的文件在本地文件系统，需要加上LOCAL，使用put将本地上传到hdfs
+					不加LOCAL默认导入的文件是在hdfs，使用mv将源文件移动到目标目录
+			OVERWRITE：表示覆盖原来文件中的内容
+
+例子： load data local inpath '/usr/local/hive-1.2.2/department1.txt' overwrite into table deptpart1 partition(area='beijing');
+```
+
+
+
+2. **insert：** insert方式运行MR程序，通过程序将数据输出到表目录！
+		在某些场景，必须使用insert方式来导入数据：
+				①向分桶表插入数据
+				②如果指定表中的数据，不是以纯文本形式存储，需要使用insert方式导入
+	
+	```mysql
+	语法： insert into|overwrite table 表名 select xxx | values(),(),() 
+				insert into: 向表中追加新的数据
+				insert overwrite： 先清空表中所有的数据，再向表中添加新的数据
+	
+	特殊情况： 多插入模式(从一张源表查询，向多个目标表插入)
+				from 源表
+				insert xxxx  目标表  select xxx
+				insert xxxx  目标表  select xxx
+				insert xxxx  目标表  select xxx
+	
+    举例： from deptpart2
+           insert into table deptpart1 partition(area='huaxi') select deptno,dname,loc
+	       insert into table deptpart1 partition(area='huaxinan') select deptno,dname,loc 
+	```
+	
+	
+	
+	
+	
+3. **location:** 在建表时，指定表的location为数据存放的目录
+
+4. **import :**  不仅可以导入数据还可以顺便导入元数据(表结构)。Import只能导入export输出的内容！
+	
+	```mysql
+	  IMPORT [[EXTERNAL] TABLE 表名(新表或已经存在的表) [PARTITION (part_column="value"[, ...])]]
+	  FROM 'source_path'
+	  [LOCATION 'import_target_path']
+					①如果向一个新表中导入数据，hive会根据要导入表的元数据自动创建表
+					②如果向一个已经存在的表导入数据，在导入之前会先检查表的结构和属性是否一致
+							只有在表的结构和属性一致时，才会执行导入
+					③不管表是否为空，要导入的分区必须是不存在的
+	
+	例子：
+	  import external table importtable1  from '/export1'
+	```
+	
+	
+
+## 7.2 DML之导出
+
+1. **insert :**  将一条sql运算的结果，插入到指定的路径
+		
+	```mysql
+    语法： insert overwrite [local] directory '/opt/module/datas/export/student'
+			   row format xxxx
+	           select * from student;
+	```
+	
+	
+	
+2. **export ：**  既能导出数据，还可以导出元数据(表结构)！
+   		  export会在hdfs的导出目录中，生成数据和元数据！
+   		  导出的元数据是和RDMS无关！ 
+   		  如果是分区表，可以选择将分区表的部分分区进行导出！
+   		  
+
+   	语法：  export table 表名 [partiton(分区信息) ] to 'hdfspath'
+
+
+
+## 7.3 排序
+		Hive的本质是MR，MR中如何排序的！
+				全排序：  结果只有一个(只有一个分区)，所有的数据整体有序！
+				部分排序：  结果有多个(有多个分区)，每个分区内部有序！
+				二次排序：  在排序时，比较的条件有多个！
+				
+				排序： 在reduce之前就已经排好序了，排序是shuffle阶段的主要工作！
+				
+		排序？ 
+		分区：使用Partitioner来进行分区！
+					当reduceTaskNum>1，设置用户自己定义的分区器，如果没有使用HashParitioner!
+					HashParitioner只根据key的hashcode来分区！
+
+- **ORDER BY col_list** ：  全排序！  order by会对所给的全部数据进行全局排序，并且只会“叫醒”一个reducer干活
+- **SORT BY col_list** ： 部分排序！ 设置reduceTaskNum>1。 只写sort by是随机分区！
+  						如果希望自定定义使用哪个字段分区，需要使用DISTRIBUTE BY
+- **DISTRIBUTE BY  col_list**：指定按照哪个字段分区！结合sort by 使用！
+- **CLUSTER BY col_list**  ： 如果分区的字段和排序的字段一致，可以简写为CLUSTER BY 
+  							DISTRIBUTE BY sal sort by sal asc  等价于  CLUSTER BY  sal
+
+						要求： CLUSTER BY  后不能写排序方式，只能按照asc排序！
+
+------------------------------------------------------------
+例子：
+```mysql
+	insert overwrite local directory '/home/atguigu/sortby'
+	ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+	select * from emp DISTRIBUTE BY deptno sort by sal desc ;
+
+	insert overwrite local directory '/home/atguigu/sortby'
+	ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+	select * from emp where mgr is not null CLUSTER BY  mgr ;
+```
 
 # 3. WordCount
 
