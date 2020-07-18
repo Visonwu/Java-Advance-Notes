@@ -30,6 +30,17 @@
 
 
 
+命令查看聚合日志
+
+```shell
+# application_1594957740884_0001 是任务id
+yarn logs -applicationId application_1594957740884_0001
+```
+
+
+
+
+
 ### 1.3 案例
 
 **1）修改配置**
@@ -97,5 +108,30 @@ $> sbin/mr-jobhistory-daemon.sh  start historyserver
 
 ```bash
 $> sbin/mr-jobhistory-daemon.sh  stop historyserver
+```
+
+
+
+## 3.Java 内存
+
+```xml
+<!--java-heap 设置-->
+
+<property>
+	<name>yarn.scheduler.maximum-allocation-mb</name>
+	<value>2048</value>
+</property>
+<property>
+  	<name>yarn.scheduler.minimum-allocation-mb</name>
+  	<value>2048</value>
+</property>
+<property>
+	<name>yarn.nodemanager.vmem-pmem-ratio</name>
+	<value>2.1</value>
+</property>
+<property>
+	<name>mapred.child.java.opts</name>
+	<value>-Xmx1024m</value>
+</property>
 ```
 
