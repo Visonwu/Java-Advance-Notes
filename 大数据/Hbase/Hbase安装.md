@@ -136,7 +136,7 @@ export HBASE_MANAGES_ZK=true
 
 vim conf/regionservers；
 
-这里配置默认localhost就ok
+这里配置默认localhost就ok；不过最好配置当前机器的域名最好
 
 
 
@@ -149,6 +149,7 @@ vim conf/regionservers；
 >bin/hbase-daemon.sh start master
 >bin/hbase-daemon.sh start regionserver
 
+或者 start-hbase.sh
 # 启动后使用jsp查看进程
 >jps
 DataNode
@@ -189,6 +190,8 @@ http://192.168.199.131:16010
 > bin/hbase-daemon.sh stop regionserver
 > bin/hbase-daemon.sh stop master
 > bin/hbase-daemon.sh stop zookeeper
+
+# 或者stop-hbase.sh
 ```
 
 
