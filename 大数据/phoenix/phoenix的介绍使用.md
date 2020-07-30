@@ -297,4 +297,9 @@ select * from user_1 where name = "ww";
 
 创建局部索引的方法(相比全局索引多了一个关键字 local):
 	CREATE LOCAL INDEX my_index ON my_table (my_index)
+	
+	
+Local index 和 Global index区别：
+	Local index 由于是数据与索引在同一服务器上，所以要查询的数据在哪台服务器的哪个region是无法定位的，只能先找到region然后再利用索引。
+	Global index 是一种分布式索引，可以直接利用索引定位服务器和region，速度更快，但是由于分布式的原因，数据一旦出现新增变化，分布式的索引要进行跨服务的同步操作，带来大量的通信消耗。所以在写操作频繁的字段上不适合建立Global index。	
 ```
