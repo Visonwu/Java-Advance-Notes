@@ -119,7 +119,7 @@ end
     passwd	修改密码
     systemctl restart sshd
     root vagrant 登录
-
+04 记得 vagrant reload 重启
 ```
 
 ## 5.box 的分发
@@ -160,6 +160,12 @@ vagrant plugin install vagrant-vbguest
 ## 7.同时启动多台虚拟机
 
 ​	这里会启动manager-node，worker01-node，worker02-node三台机器
+
+```vagrant
+可以通过启动： vagrant ssh virtual_name 
+```
+
+
 
 ```bash
 boxes = [
