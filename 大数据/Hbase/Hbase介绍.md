@@ -146,7 +146,7 @@ store是 部分行的 相同列簇数据
 
 Region就是表中的若干行数据
 
-Storefile是一个Row Key的数据，可能宝行多个版本的数据。 
+Storefile是一个Row Key的数据，可能包含多个版本的数据。 
 
 ![Uxgnje.png](https://s1.ax1x.com/2020/07/25/Uxgnje.png)
 

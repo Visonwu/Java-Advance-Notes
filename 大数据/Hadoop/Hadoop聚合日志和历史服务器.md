@@ -92,7 +92,26 @@ $> hdfs dfs -ls /
 **1）在mapred-size.xml中的配置项**
 
 - mapreduce.jobhistory.address:  jobhistory的rpc访问地址
-- mapreduce.jobhistory.webapp.address: jobhistory的http访问地址
+- mapreduce.jobhistory.webapp.address     ; jobhistory的http访问地址
+
+```xml
+	<!--jobhistory rpc地址 -->    
+	<property>
+       <name>mapreduce.jobhistory.address</name>
+       <value>ebusiness:10010</value>
+     </property>
+	<!--jobhistory http地址 -->   
+    <property>
+       <name>mapreduce.jobhistory.webapp.address</name>
+       <value>ebusiness:19888</value>
+     </property>
+    <property>
+       <name>yarn.log.server.url</name>
+       <value>http://ebusiness:19888/jobhistory/logs</value>
+     </property>
+```
+
+
 
 **2）启动服务器**
 

@@ -206,6 +206,31 @@ node3
 </configuration>
 ```
 
+配置yarn-site.xml之mapreduce-shuffle
+
+```xml
+<configuration>
+ <property>
+   <name>yarn.nodemanager.aux-services</name>
+   <value>mapreduce_shuffle</value>
+ </property>
+    
+ <property>  
+    <name>yarn.resourcemanager.address</name>  
+    <value>hadoopMaster:8032</value>  
+</property> 
+<property>
+    <name>yarn.resourcemanager.scheduler.address</name>  
+    <value>hadoopMaster:8030</value>  
+</property>
+<property>
+    <name>yarn.resourcemanager.resource-tracker.address</name>  
+    <value>hadoopMaster:8031</value>  
+</property>
+    
+</configuration>
+```
+
 
 
 **步骤五：将node1节点中的配置文件copy到其他node2/node3**
@@ -265,3 +290,14 @@ $> sh start-yarn.sh
 ​	通过node1节点访问`192.168.124.152:50070`
 
 ​	通过node2节点访问`192.168.124.153:8088`
+
+如果上面不能访问8088 端口,在/etc/hosts中注释掉localhost到127.0.0.1的解析以及localhost转向当前ip地址
+
+```test
+
+#127.0.0.1	ebusiness1	ebusiness1
+#127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+#::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+192.168.199.132 localhost
+```
+

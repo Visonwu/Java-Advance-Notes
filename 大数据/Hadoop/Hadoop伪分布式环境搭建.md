@@ -138,7 +138,8 @@ hadoop-senior01-test.com
 ```bash
 # $HADOOP_HOME/bin下 可以通过hdfs --help 查看命令 ，我们配置了环境变量可以直接这样启动
 $ > sh  hdfs namenode -format
-
+# 或者
+$> hadoop namenode -format
 # 成功后目录创建成功 。。。。has been successfully formatted.
 ```
 
@@ -229,6 +230,20 @@ $> vim mapred-site.xml
    <name>yarn.nodemanager.aux-services</name>
    <value>mapreduce_shuffle</value>
  </property>
+    
+ <property>  
+    <name>yarn.resourcemanager.address</name>  
+    <value>hadoopMaster:8032</value>  
+</property> 
+<property>
+    <name>yarn.resourcemanager.scheduler.address</name>  
+    <value>hadoopMaster:8030</value>  
+</property>
+<property>
+    <name>yarn.resourcemanager.resource-tracker.address</name>  
+    <value>hadoopMaster:8031</value>  
+</property>
+    
 </configuration>
 ```
 

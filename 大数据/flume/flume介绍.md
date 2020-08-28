@@ -24,7 +24,7 @@ Flume组成架构：
 
 ​		Source是负责接收数据到Flume Agent的组件。Source组件可以处理各种类型、各种格式的日志数据，包括avro、thrift、exec、jms、spooling directory、netcat、sequence generator、syslog、http、legacy。
 
-### **1.3 **Sink**
+### **1.3 **Sink
 
 ​		Sink不断地轮询Channel中的事件且批量地移除它们，并将这些事件批量写入到存储或索引系统、或者被发送到另一个Flume Agent。
 
@@ -350,7 +350,20 @@ a1.sinks.k1.channel=c1
 
 
 
+## 5.FileChannel
 
+fileChannel:  channel中的event是存储在文件中！比memorychannel可靠，但是效率略低！
+必须的配置：
+
+- type=file
+- checkpointDir=checkpoint线程(负责检查文件中哪些event已经被sink消费了，将这些event的文件删除)保存数据的目录！
+- useDualCheckpoints=false 是否启动双检查点，如果启动后，会再启动一个备用的checkpoint线程！
+  			如果改为true，还需要设置backupCheckpointDir(备用的checkpoint线程的工作目录)
+- dataDirs=在哪些目录下保存event，默认为~/.flume/file-channel/data，可以是逗号分割的多个目录！
+
+可选配置
+
+- keep-alive ：表示一次put操作支持的时间，超过该时间就报错，本次put操作回滚
 
 
 
