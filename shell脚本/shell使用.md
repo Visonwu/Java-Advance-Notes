@@ -610,5 +610,43 @@ root> ifconfig eth0 | grep "inet addr" | awk -F: '{print $2}' | awk -F " " '{pri
 
 
 
+# 8.面试脚本
+
+```
+1)Linux常用命令
+	参考答案：find、df、tar、ps、top、netstat等。（尽量说一些高级命令)
+2)Linux查看内存、磁盘存储、io 读写、端口占用、进程等命令
+	答案：
+	1、查看内存：top
+	2、查看磁盘存储情况：df -h
+	3、查看磁盘IO读写情况：iotop（需要安装一下：yum install iotop）、iotop -o（直接查看输出比较高的磁盘读写程序）
+	4、查看端口占用情况：netstat -tunlp | grep 端口号
+		t:表示查看tcp；u表示udp，n表示域名；p表示。。
+	5、查看进程：ps aux；
+	
+3）使用Linux命令查询file1中空行所在的行号
+	awk '/^$/{print NR}' test.txt
+
+4)有文件chengji.txt内容如下，计算第二列和
+	张三 40
+	李四 100
+	周五 110
+	
+	awk -v sum=0 -F " " '{sum=sum+$2} END {print sum}' 
+5) Shell脚本里如何检查一个文件是否存在？如果不存在该如何处理？
+	#!/bin/bash
+	if [ -f test.txt ]
+	then
+		echo  文件存在
+	else
+		echo 文件不存在
+	fi
+6)用shell写一个脚本，对文本中无序的一列数字排序
+	sort -n test.txt
+
+7)请用shell脚本写出查找当前文件夹（/home）下所有的文本文件内容中包含有字符”shen”的文件名称
+	 grep -r "shen" /home | cut -d ":" -f	 1
+```
+
 
 
