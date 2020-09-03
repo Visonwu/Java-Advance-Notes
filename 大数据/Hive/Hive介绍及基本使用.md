@@ -945,7 +945,9 @@ sort_array： 将array中的元素排序
 
 ​	
 
+# 9.DBeaver工具
 
+可以通过DBeaver工具来可视化查看hive数据。
 
 
 ​		
