@@ -653,6 +653,13 @@ location 'hdfs://hadoop101:9000/deptpart3';
 	②如果表是多级分区表，在导入数据时，数据必须位于最后一级分区的目录        
 ```
 
+修改分区
+
+```sql
+ALTER TABLE table_name PARTITION (dt='2008-08-08') SET LOCATION "new location";
+ALTER TABLE table_name PARTITION (dt='2008-08-08') RENAME TO PARTITION (dt='20080808');
+```
+
 
 
 使用比如导入数据
@@ -935,9 +942,30 @@ map_keys： 返回map中的key
 map_values: 返回map中的value
 * array_contains: 判断array中是否包含某个元素
 sort_array： 将array中的元素排序
+
+json处理 
+
+get_json_object：从json中抽取对象数据
 ```
 
 
+
+```
+get_json_object的使用
+hive>desc function extended get_json_object
+  $   : 表示json对象
+  .   : 代表获取JSON对象中子对象（属性）的操作符
+  []  : 获取array中某个元素
+ 
+例子如下json数据： 
+
+{"name":"jack","age":12,"interest":["a","b"],"parent":[{"name":"lili","age":44},{{"name":"zhangsan","age":48}]}  
+  
+#获取属性  
+select get_json_object("上面的数据","$.age")
+#获取数组中对象的属性
+select get_json_object("上面的数据","$.parent[1].age")
+```
 
 
 

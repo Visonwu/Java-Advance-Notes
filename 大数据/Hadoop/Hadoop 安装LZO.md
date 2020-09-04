@@ -130,6 +130,8 @@ select id,count(*) from bigtable group by id limit 10;
 
 ```hadoop
 hadoop jar /opt/module/hadoop-2.7.2/share/hadoop/common/hadoop-lzo-0.4.20.jar com.hadoop.compression.lzo.DistributedLzoIndexer /user/hive/warehouse/bigtable
+
+# /user/hive/warehouse/bigtable 表示需要建立索引的hdfs索引目录，执行完了每一个文件会多一个.index文件
 ```
 
 （5）测试（建索引之后），观察map个数（2个）

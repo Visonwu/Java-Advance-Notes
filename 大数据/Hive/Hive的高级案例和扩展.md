@@ -26,6 +26,226 @@ create [temporary] function 函数名  as  自定义的函数的全类名
 
 
 
+5.举例
+
+**例子1：**创建UDF 1对1函数
+
+```java
+package com.vison;
+
+import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.hive.ql.exec.UDF;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+/**
+ * UDF 一对一 输入一，输出一
+ *
+ * @author Vison
+ * @date 2020/9/4 13:57
+ * @Version 1.0
+ *
+ * line 的值
+ *  * 1829239293829|{
+ *  * 	"cm": {
+ *  * 		"ln": "-107.3",
+ *  * 		"sv": "V2.7.3",
+ *  * 		"os": "8.1.1",
+ *  * 		"g": "3VR8AVWU@gmail.com",
+ *  * 		"mid": "53",
+ *  * 		"nw": "WIFI",
+ *  * 		"l": "es",
+ *  * 		"vc": "0",
+ *  * 		"hw": "1080*1920",
+ *  * 		"ar": "MX",
+ *  * 		"uid": "53",
+ *  * 		"t": "1598518800838",
+ *  * 		"la": "-53.8",
+ *  * 		"md": "Huawei-15",
+ *  * 		"vn": "1.2.5",
+ *  * 		"ba": "Huawei",
+ *  * 		"sr": "R"
+ *  *        },
+ *  * 	"ap": "app",
+ *  * 	"et": [{
+ *  * 		"ett": "1598552161555",
+ *  * 		"en": "display",
+ *  * 		"kv": {
+ *  * 			"goodsid": "16",
+ *  * 			"action": "2",
+ *  * 			"extend1": "1",
+ *  * 			"place": "4",
+ *  * 			"category": "34"
+ *  *        }
+ *  *    },{
+ *  * 		"ett": "1598592519226",
+ *  * 		"en": "favorites",
+ *  * 		"kv": {
+ *  * 			"course_id": 5,
+ *  * 			"id": 0,
+ *  * 			"add_time": "1598577718786",
+ *  * 			"userid": 7
+ *  *        }
+ *  *    }]
+ *  * }
+ *  * line 格式： 时间戳|json数据
+ *  * 1.取ap的值
+ *  * 2.取时间值
+ *  * 3.取cm中的公共数值
+ *
+ */
+public class MyUDF  extends UDF {
+
+    public String evaluate (final String line,String key) throws JSONException {
+        if (StringUtils.isEmpty(line)){
+            return "";
+        }
+        // ts 表示时间
+        if (!line.contains(key) && !"ts".equals(key) ){
+            return "";
+        }
+        String[] words = line.split("\\|");
+        JSONObject jsonObject = new JSONObject(words[1]);
+        if ("ts".equals(key)){
+            return words[0].trim();
+        }else if ("ap".equals(key)){
+            return jsonObject.getString("ap");
+        }else if ("et".equals(key)){
+            return jsonObject.getString("et");
+        }else{
+            return jsonObject.getJSONObject("cm").getString(key);
+        }
+    }
+
+    public static void main(String[] args) throws JSONException {
+
+        String line = "1598598623100|{\"cm\":{\"ln\":\"-107.3\",\"sv\":\"V2.7.3\",\"os\":\"8.1.1\",\"g\":\"3VR8AVWU@gmail.com\",\"mid\":\"53\",\"nw\":\"WIFI\",\"l\":\"es\",\"vc\":\"0\",\"hw\":\"1080*1920\",\"ar\":\"MX\",\"uid\":\"53\",\"t\":\"1598518800838\",\"la\":\"-53.8\",\"md\":\"Huawei-15\",\"vn\":\"1.2.5\",\"ba\":\"Huawei\",\"sr\":\"R\"},\"ap\":\"app\",\"et\":[{\"ett\":\"1598552161555\",\"en\":\"display\",\"kv\":{\"goodsid\":\"16\",\"action\":\"2\",\"extend1\":\"1\",\"place\":\"4\",\"category\":\"34\"}},{\"ett\":\"1598585511276\",\"en\":\"newsdetail\",\"kv\":{\"entry\":\"2\",\"goodsid\":\"17\",\"news_staytime\":\"8\",\"loading_time\":\"36\",\"action\":\"4\",\"showtype\":\"5\",\"category\":\"85\",\"type1\":\"542\"}},{\"ett\":\"1598592852530\",\"en\":\"notification\",\"kv\":{\"ap_time\":\"1598556750942\",\"action\":\"1\",\"type\":\"4\",\"content\":\"\"}},{\"ett\":\"1598558409647\",\"en\":\"active_foreground\",\"kv\":{\"access\":\"\",\"push_id\":\"2\"}},{\"ett\":\"1598593407135\",\"en\":\"error\",\"kv\":{\"errorDetail\":\"java.lang.NullPointerException\\\\n    at cn.lift.appIn.web.AbstractBaseController.validInbound(AbstractBaseController.java:72)\\\\n at cn.lift.dfdf.web.AbstractBaseController.validInbound\",\"errorBrief\":\"at cn.lift.appIn.control.CommandUtil.getInfo(CommandUtil.java:67)\"}},{\"ett\":\"1598592519226\",\"en\":\"favorites\",\"kv\":{\"course_id\":5,\"id\":0,\"add_time\":\"1598577718786\",\"userid\":7}}]}";
+
+        String ap = new MyUDF().evaluate(line, "ts");
+        System.out.println(ap);
+    }
+}
+
+```
+
+
+
+**例子2：**创建UDTF 1对多函数
+
+```java
+package com.vison;
+
+import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDTF;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
+import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 一对多
+ *
+ * @author Vison
+ * @date 2020/9/4 14:19
+ * @Version 1.0
+ *
+ * 	"et": [{
+ * 		"ett": "1598552161555",
+ * 		"en": "display",
+ * 		"kv": {
+ * 			"goodsid": "16",
+ * 			"action": "2",
+ * 			"extend1": "1",
+ * 			"place": "4",
+ * 			"category": "34"
+ *        }
+ *    },{
+ * 		"ett": "1598592519226",
+ * 		"en": "favorites",
+ * 		"kv": {
+ * 			"course_id": 5,
+ * 			"id": 0,
+ * 			"add_time": "1598577718786",
+ * 			"userid": 7
+ *        }
+ *    }]
+ *
+ * 将et数组，转换为多行数据
+ * event_name=en
+ * event_json=et数组中的一条
+ *
+ */
+public class MyUDTF extends GenericUDTF {
+
+    //在函数运行前调用一次，作用是告诉mapTask;当前函数返回的类型和个数；一边mapTask运行时会将函数返回值进行检查
+    //当前函数，应该在initialize声明返回值类型为2列string类型的数据
+    @Override
+    public StructObjectInspector initialize(ObjectInspector[] argOIs) throws UDFArgumentException {
+        //当前返回的两列字段别名；event_name;event_json
+        List<String> fileName = new ArrayList<>();
+        fileName.add("event_name");
+        fileName.add("event_json");
+
+        //当前两列的检查类型,java string 类型
+        List<ObjectInspector> fieldOIs = new ArrayList<>();
+        fieldOIs.add(PrimitiveObjectInspectorFactory.javaStringObjectInspector);
+        fieldOIs.add(PrimitiveObjectInspectorFactory.javaStringObjectInspector);
+
+        return ObjectInspectorFactory.getColumnarStructObjectInspector(fileName,fieldOIs);
+    }
+
+    /**
+     * 执行函数功能，处理数据返回结果；通过forward()返回结果
+     * 返回的为2列N行的数据
+     * @param args  传入的参数值；这里只有一个参数上面 注释中的数组数据
+     * @throws HiveException
+     */
+
+    @Override
+    public void process(Object[] args) throws HiveException {
+        if (args == null || args.length ==0){
+            return;
+        }
+        try {
+            JSONArray jsonArray = new JSONArray(args[0].toString());
+            if (jsonArray.length() == 0){
+                return;
+            }
+            for (int i = 0; i < jsonArray.length(); i++) {
+                JSONObject jsonObject = jsonArray.getJSONObject(i);
+                try {
+                    String[] result = new String[2];
+                    result[0] = jsonObject.getString("en"); //第一列数据
+                    result[1] = jsonObject.toString();         //第二列数据
+                    super.forward(result);
+                }catch (Exception ignore){ //避免其中一步影响全局数据
+                }
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+
+    //函数调用完成之后处理一些清理和关闭操作
+    @Override
+    public void close() throws HiveException {
+
+    }
+}
+
+```
+
+
+
+
+
 ## 2. snappy压缩
 
 可以通过  `hadoop checknative` 查看本地 支持哪些压缩
@@ -107,7 +327,7 @@ hive (default)>set mapreduce.map.output.compress.codec=
 
 4．执行查询语句
 
-​	hive (default)> select count(ename) name from emp;
+	hive (default)> select count(ename) name from emp;
 ```
 
 
