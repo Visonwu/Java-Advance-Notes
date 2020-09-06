@@ -100,7 +100,7 @@ from person  group by deptid;
 
 ## 5. 行转列
 
-相关函数说明
+相关函数说明,多行变一行
 
 - CONCAT(string A/col, string B/col…)：返回输入字符串连接后的结果，支持任意个输入字符串;
 
@@ -135,6 +135,15 @@ select c1.name,concat(c1.constell,"星座和血型",c1.bloodtype) base from cons
 group by t1.base 
 ```
 
+```mysql
+-- collect_set的使用，对于user_id去重，然后通过concat_ws用|将用户id拼接起来
+select  
+    mid_id,
+    concat_ws('|', collect_set(user_id)) user_id,
+from dwd_start_log  where dt='2019-12-14'
+group by mid_id;
+```
+
 
 
 
@@ -148,7 +157,7 @@ group by t1.base
 
 - LATERAL VIEW
   用法：LATERAL VIEW udtf(expression) tableAlias AS columnAlias
-  解释：用于和split, explode等UDTF一起使用，它能够将一列数据拆成多行数据，在此基础上可以对拆分后的数据进行聚合。
+  解释：用于和split, explode等UDTF（一对多）一起使用，它能够将一列数据拆成多行数据，在此基础上可以对拆分后的数据进行聚合。
 
 
 
@@ -163,13 +172,21 @@ group by t1.base
 
 ```mysql
 -- 建表和导入数据：
-create table coloumn_row (name string,feature string) row format delimited fields terminated by '\t';
+hive>create table movie_info (movie string,category string) row format delimited fields terminated by '\t';
 load data local inpath '/usr/local/hive-1.2.2/hive-data/coloumn_row.txt' overwrite into table coloumn_row;
 
 
--- 数据查询
-select  movie, category_name
-from  movie_info lateral view explode(category) table_tmp as category_name;
+-- 数据查询 as 后面接列名，有多个列的话，用逗号分隔
+hive>select  movie, category_name
+from  movie_info lateral view split(category,",") table_tmp as category_name;
+
+《疑犯追踪》	悬疑,
+《疑犯追踪》 动作
+《疑犯追踪》 科幻
+《疑犯追踪》 剧情
+《Lie to me》	悬疑
+《Lie to me》 警匪
+.....
 ```
 
 

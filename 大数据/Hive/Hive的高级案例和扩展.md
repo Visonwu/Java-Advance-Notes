@@ -197,7 +197,7 @@ public class MyUDTF extends GenericUDTF {
         fieldOIs.add(PrimitiveObjectInspectorFactory.javaStringObjectInspector);
         fieldOIs.add(PrimitiveObjectInspectorFactory.javaStringObjectInspector);
 
-        return ObjectInspectorFactory.getColumnarStructObjectInspector(fileName,fieldOIs);
+        return ObjectInspectorFactory.getStandardStructObjectInspector(fileName,fieldOIs);
     }
 
     /**
@@ -240,6 +240,19 @@ public class MyUDTF extends GenericUDTF {
     }
 }
 
+```
+
+
+
+基于上面打包上传到hive/auxlib/中，然后启动hive
+
+```shell
+#创建函数
+hive>create function   as 'com.vison.MyUDF';
+hive>create function flat_analizer as 'com.vison.MyUDTF';
+# 使用函数获取数据
+hive>select base_analizer(line,"ts") from ods_event_log limit 1;
+hive>select flat_analizer(base_analizer(line,"et")) from ods_event_log limit 1;
 ```
 
 

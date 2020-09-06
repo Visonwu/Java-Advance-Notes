@@ -573,7 +573,7 @@ CREATE [EXTERNAL] TABLE [IF NOT EXISTS] table_name
 
 `[PARTITIONED BY (col_name data_type [COMMENT col_comment], ...)] `
 
-
+分区的高级设置（静态和动态见高级案例和扩展介绍）
 
 **1.分区表**
 
@@ -859,6 +859,28 @@ insert into table stu_buck select * from stu_buck_tmp
 
 
 
+## 7.4 join和union
+
+```
+hive 当中可以通过 join 和 union 两种方式合并表，其中 join 偏向于横向拼接（增加列的数量），union 则主要负责纵向拼接（增加行的数量）。
+
+hive 中 join 主要分为六种:
+
+join ：内连接，返回两张表都有的数据。
+left outer join ：左连接，以前面的表为主表，返回的数据行数跟主表相同，关联不上的字段为NULL。
+right outer join：右连接，以后面的表为主表，返回的记录数和主表一致，关联不上的字段为NULL。
+full outer join：全连接，返回两个表的并集，空缺的字段为NULL。
+cross join： 返回两个表的笛卡尔积结果（数目为左表乘右表），不需要指定关联键。
+left semi join： 并不拼接两张表，两个表对 on 的条件字段做交集，返回前面表的记录，相较于其他的方法，这样子 hive 处理速度比较快。
+
+切记，使用 join 时不能忘记关键字 on。如果结尾未写 on，则都相当于进行 cross join
+
+hive 中不支持 where 语句的子查询。如下sql 语句在 hive 中是要凉凉的
+
+```
+
+
+
 # 8.函数
 
 ## 8.1.查看函数
@@ -918,6 +940,9 @@ dayofmonth：当前时间是一个月中的第几天
 * date_add：日期加天数
 * date_sub：日期减天数
 * last_day：日期的当月的最后一天
+* next_day:下一个日期；比如下周一：select next_day('2020-09-6','MO'); 
+
+-- 注意 上面MO用的东方的周（周一作为一周开始）；"monday"表示西方周（周日作为一周开始）
 
 date_format格式化日期   date_format( 2019-11-24 08:09:10,'yyyy-MM') mn
 
@@ -950,7 +975,7 @@ get_json_object：从json中抽取对象数据
 
 
 
-```
+```shell
 get_json_object的使用
 hive>desc function extended get_json_object
   $   : 表示json对象
@@ -959,12 +984,14 @@ hive>desc function extended get_json_object
  
 例子如下json数据： 
 
-{"name":"jack","age":12,"interest":["a","b"],"parent":[{"name":"lili","age":44},{{"name":"zhangsan","age":48}]}  
+{"name":"jack","age":12,"kv":{"action":1,"goods":"2929"},"interest":["a","b"],"parent":[{"name":"lili","age":44},{{"name":"zhangsan","age":48}]}  
   
 #获取属性  
 select get_json_object("上面的数据","$.age")
 #获取数组中对象的属性
 select get_json_object("上面的数据","$.parent[1].age")
+#获取json中属性值是对象的属性
+select get_json_object("上面的数据","$.kv.action")
 ```
 
 
