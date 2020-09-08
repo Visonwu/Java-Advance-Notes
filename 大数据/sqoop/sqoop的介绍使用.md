@@ -123,7 +123,7 @@ bin/sqoop import \
 --where 'id >= 10 and id <= 20' \
 // 执行查询的SQL，将查询的数据进行导入，如果使用了--query,不加再用--table,--where,--columns
 // 只要使用--query ，必须添加$CONDITONS,这个条件会被Sqoop自动替换为一些表达式
---query "SQL"
+--query "SQL" ' and $CONDITIONS;'
 
 
 提示：must contain '$CONDITIONS' in WHERE clause.
@@ -170,6 +170,28 @@ $ bin/sqoop import \
 --fields-terminated-by "\t" \
 --hive-overwrite \
 --hive-table paste
+
+
+
+#shell
+import_data() {
+/opt/module/sqoop/bin/sqoop import \
+--connect jdbc:mysql://hadoop102:3306/$db_name \
+--username root \
+--password 000000 \
+--target-dir /origin_data/$db_name/db/$1/$db_date \
+--delete-target-dir \
+--num-mappers 1 \
+--fields-terminated-by "\t" \
+--query "$2"' and $CONDITIONS;'
+}
+
+import_sku_info(){
+  import_data "sku_info" "select 
+id, spu_id, price, sku_name, sku_desc, weight, tm_id,
+category3_id, create_time
+  from sku_info where 1=1"
+}
 ```
 
 
