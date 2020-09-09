@@ -519,6 +519,8 @@ CREATE [EXTERNAL] TABLE [IF NOT EXISTS] table_name
 			
 ```
 
+
+
 	①建表时，不带EXTERNAL，创建的表是一个MANAGED_TABLE(管理表，内部表)
 		建表时，带EXTERNAL，创建的表是一个外部表！
 	
@@ -538,6 +540,27 @@ CREATE [EXTERNAL] TABLE [IF NOT EXISTS] table_name
 		将表改为管理表：	alter table p1 set tblproperties('EXTERNAL'='FALSE');
 		
 		注意：在hive中语句中不区分大小写，但是在参数中严格区分大小写！
+
+临时表
+
+```sql
+-- 创建临时表并插入 with temp_tablename as (select * from xxx) insert overwrite table dws_user_action partition(dt='2019-02-10')
+
+-- with as 最后必须跟sql语句结束，不允许单独使用。
+
+with tmp_a as (
+	select f1,f2,f3 from test1
+),
+tmp_b as(
+	select f1,f4,f5 from test2
+)
+select a.f1,a.f2,a.f3,b.f4,b.f5 from
+tmp_a a
+left join
+tmp_b b
+on a.f1 = b.f1
+
+```
 
 **2.删**
 

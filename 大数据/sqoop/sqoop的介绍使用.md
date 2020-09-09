@@ -314,3 +314,40 @@ jdbc:mysql://192.168.4.157:3306/company \
 $ bin/sqoop --options-file opt/job_mysql2hdfs.opt
 ```
 
+
+
+# 7.导入数据是NULL
+
+​	mysql通过sqoop导入到hive表中，发现有空的数据列导入后数据为null；我们通常是将数据先导入hdfs，然后导入hive中。
+
+```shell
+目前：  mysql--operate_time--NULL  导入到  hdfs时， hdfs----operate_time----'null'
+希望：  mysql--operate_time--NULL  导入到  hdfs时， hdfs----operate_time----NULL
+
+需要在sqoop导入和导出的命令中添加额外的参数！
+
+1.默认sqoop到import数据时，将Mysql的Null类型，转为'null'
+2.hive中使用\N代表NULL类型
+3.如果希望在import时，讲将Mysql的Null类型，转为自己期望的类型，
+需要使用--null-string and --null-non-string 
+	--null-string：  当mysql的string类型列为null时，导入到hive时，使用什么来代替！
+		--null-string a:  如果mysql中，当前列是字符串类型(varchar,char)，假如这列值为NULL，
+							导入到hive时，使用a来代替！
+	--null-non-string： 当mysql的非string类型列为null时，导入到hive时，使用什么来代替！
+		--null-non-string b: 如果mysql中，当前列不是字符串类型(varchar,char)，假如这列值为NULL，
+							导入到hive时，使用b来代替！
+							
+4.如果到导出时，希望将指定的参数，导出为mysql的NULL类型，需要使用
+--input-null-string and --input-null-non-string 
+	 --input-null-string a： 在hive导出到mysql时，如果hive中string类型的列的值为a,导出到mysql中，使用NULL代替！
+	--input-null-non-string b: 在hive导出到mysql时，如果hive中非string类型的列的值为b,导出到mysql中，使用NULL代替！
+```
+
+
+
+```shell
+#所以上面导入的解决方案：
+#hive中使用\N代表NULL类型
+$ sqoop import  ... --null-string '\\N' --null-non-string '\\N'
+```
+
