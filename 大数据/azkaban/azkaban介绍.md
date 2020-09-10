@@ -355,7 +355,7 @@ e.启动执行该job
 
 
 
-### 4.3 多job工作流案例
+### 4.2 多job工作流依赖案例
 
 创建有依赖关系的多个job描述; first->second,third->last
 
@@ -392,5 +392,30 @@ command=bash -c "echo 111 >> /opt/module/azkaban/test/1.txt && echo 222 >> /opt/
 
 
 
+### 4.3 java 任务
+
+#### 4.3.1）将java程序打成jar包
 
 
+
+#### 4.3.2 ）编写job文件 testJava.job
+
+```properties
+type=javaprocess
+java.class=com.vison.AppMain ${gapTime} ${nums}
+classpath=/opt/soft/logger-collector-0.0.1.jar
+```
+
+- javaprocess表示java任务
+- java.class 表示main方法入口类 ${gapTime}和${nums} 表示要传入的参数
+- classpath表示当前jar在azkaban服务器的地址，如果有相关依赖，需要都包含进去比如用路径 /opt/soft/*
+
+#### 4.3.3 ）将job文件打成zip包
+
+
+
+#### 4.3.4） web上传执行
+
+通过azkaban的web管理平台创建project并上传job压缩包，启动执行该job
+
+可以通过flow parameter添加参数
