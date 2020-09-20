@@ -1,0 +1,771 @@
+# 1.变量
+
+## 1.1 注释
+
+和java相同的注释
+
+```text
+（1）单行注释：//
+（2）多行注释：/* */
+（3）文档注释：/**
+	*
+    */
+```
+
+
+
+## 1.2 标识符
+
+​		Scala对各种变量、方法、函数等命名时使用的字符序列称为标识符。即：凡是自己可以起名字的地方都叫标识符。
+
+**1）命名规则**
+
+Scala中的标识符声明，基本和Java是一致的，但是细节上会有所变化，有以下四种规则：
+
+（1）以字母或者下划线开头，后接字母、数字、下划线
+
+（2）以操作符开头，且**只包含**操作符（+ - * / # !等）
+
+（3）第一种和第二种拼接，第一种在前，二者以下划线分隔
+
+（4）用反引号`....`包括的任意字符串，即使是关键字（39个）也可以
+
+2）案例实操
+
+```scala
+hello    // ok
+hello12 // ok
+1hello  // error
+h-b      // error
+x h      // error
+h_4      // ok
+_ab      // ok
+Int      // ok , 因为在Scala Int是预定义的字符,不推荐
+Float    // ok 
+_        // error ,单独一个下划线不可以作为标识符
+Abc      // ok
++*-      // ok
++a       // error
+$a		 // ok , 但不要让scala的标识符出现$,因为scala编译器会使用$
+```
+
+
+
+3）Scala关键字（39个）
+
+```scala
+• package, import, class, object, trait, extends, with, type, for
+• private, protected, abstract, sealed, final, implicit, lazy, override
+• try, catch, finally, throw 
+• if, else, match, case, do, while, for, return, yield
+• def, val, var 
+• this, super
+• new
+• true, false, null
+```
+
+
+
+## 1.3 变量、常量
+
+1）基本语法
+
+​	var | val 变量名 [: 变量类型] = 变量值
+
+​	说明：在Scala中声明一个变量时，**可以不指定类型**，编译器**根据值确定**
+
+2）案例实操
+
+（1）声明变量时，类型可以省略（编译器自动推导，即类型推导）
+
+（2）类型确定后，就不能修改，说明Scala是强数据类型语言。
+
+（3）变量声明时，需要初始值
+
+```scala
+object TestVar {
+
+    def main(args: Array[String]): Unit = {
+
+        //（1）声明变量时，类型可以省略（编译器自动推导，即类型推导）
+        var age = 18
+        age = 30
+
+        //（2）类型确定后，就不能修改，说明Scala是强数据类型语言。
+//        age = "tom" // 错误
+
+        //（3）变量声明时，需要初始值
+//        var name //错误
+    }
+}
+```
+
+（4）在声明/定义一个变量时，可以使用var或者val来修饰，var修饰的变量可改变，val修饰的变量不可改。
+
+```scala
+object TestVar {
+
+    def main(args: Array[String]): Unit = {
+
+        var num1 = 10   // 可变
+        val num2 = 20   // 不可变
+
+        num1 = 30  // 正确
+        //num2 = 100  //错误，因为num2是val修饰的
+    }
+}
+```
+
+（5）val修饰的变量在编译后，等同于加上final通过反编译看下底层代码
+
+```scala
+object TestVar {
+
+    def main(args: Array[String]): Unit = {
+
+        var num1 = 10   // 可变
+        val num2 = 20   // 不可变
+
+        num1 = 30  // 正确
+        //num2 = 100  //错误，因为num2是val修饰的
+    }
+}
+
+// 反编译
+object TestVar {
+    var num1 = 10   // 可变
+    val num2 = 20   // 不可变
+
+    def main(args: Array[String]): Unit = {
+        num1 = 30  // 正确
+        //num2 = 100  //错误，因为num2是val修饰的
+    }
+}
+```
+
+
+
+（6）var修饰的对象引用可以改变，val修饰的则不可改变，但对象的状态（值）却是可以改变的。（比如：自定义对象、数组、集合等等，和java相同）
+
+
+
+# 2.字符串输出
+
+1）基本语法
+
+（1）字符串，通过+号连接
+
+（2）printf用法：字符串，通过%传值。
+
+（3）字符串，通过$引用获取变量值
+
+2）案例实操
+
+```scala
+object TestCharType {
+
+    def main(args: Array[String]): Unit = {
+        var name: String = "jinlian"
+        var age: Int = 18
+
+        //（1）字符串，通过+号连接
+        println(name + " " + age)
+
+        //（2）printf用法字符串，通过%传值。
+        printf("name=%s age=%d\n", name, age)
+
+        //（3）字符串，通过$引用，前面有s字符，可以动态获取name，age的值
+        println(s"name=$name age=$age")
+        
+        // (4) 前面用raw可以打印\n作为原生字符，不需要做转义
+        var d = raw"ssss\n${12+12}"
+    	println(d)
+        
+		//(5)多行输出
+        println(
+            s"""
+             name=${name}
+             age=${age}
+             """
+        )
+        // (6)多行输出避免顶格美观，如下方式，以|作为左边顶格，打印会自动取消
+          val e = """|aa
+   				   |bb
+   				   |sss
+   				   |""".stripMargin
+   				 println(e)
+    }
+}
+```
+
+
+
+# 3.键盘输入
+
+在编程中，需要接收用户输入的数据，就可以使用键盘输入语句来获取。
+
+1）基本语法
+
+```scala
+StdIn.readLine()、StdIn.readShort()、StdIn.readDouble()
+```
+
+2）案例实操
+
+```scala
+import scala.io.StdIn
+
+object TestInput {
+
+    def main(args: Array[String]): Unit = {
+
+        // 1 输入姓名
+        println("input name:")
+        var name = StdIn.readLine()
+
+        // 2 输入年龄
+        println("input age:")
+        var age = StdIn.readShort()
+
+        // 3 输入薪水
+        println("input sal:")
+        var sal = StdIn.readDouble()
+
+        // 4 打印
+        println("name=" + name)
+        println("age=" + age)
+        println("sal=" + sal)
+        
+        //5.可以直接把提示写进方法里面,甚至参数
+         println(StdIn.readLine("请输入%d数据\n", "薪水"))
+
+    }
+}
+```
+
+
+
+# 4.数据类型
+
+![wTsFgO.png](https://s1.ax1x.com/2020/09/20/wTsFgO.png)
+
+Scala数据类型关系总结：
+
+- 1）Scala中一切数据都是对象，都是Any的子类。
+
+- 2）Scala中数据类型分为两大类：数值类型（AnyVal）、引用类型（AnyRef），**不管是值类型还是引用类型都是对象。**
+
+- 3）Scala数据类型仍然遵守，低精度的值类型向高精度值类型，自动转换（隐式转换）
+
+- 4） Scala特殊的类型之Null，它只有一个实例就是Null，它是所有引用类型（AnyRef）的子类。
+
+- 5）Scala特殊类型之Nothing，是所有数据类型的子类，主要在一个函数没有正常返回值使用，因为这样我们可以把抛出的返回值，返回给任何的变量或者函数。
+- 6）Unit类型对应java中的Void，打印出来是(）；一般用于方法和函数的返回值
+- 7）StringOps可以看成是String的加强版，当Java的string的时候，一些没有方法，自动从这个类型找（隐式转换）
+
+
+
+##  4.1 Unit、Null和Nothing类型
+
+| 数据类型    | **描述**                                                     |
+| ----------- | ------------------------------------------------------------ |
+| **Unit**    | 表示无值，和其他语言中void等同。用作不返回任何结果的方法的结果类型。Unit只有一个实例值，写成()。 |
+| **Null**    | null , Null 类型只有一个实例值null                           |
+| **Nothing** | Nothing类型在Scala的类层级的最低端；它是任何其他类型的子类型。当一个函数，我们确定没有正常的返回值，可以用Nothing来指定返回类型，这样有一个好处，就是我们可以把返回的值（异常）赋给其它的函数或者变量（兼容性） |
+
+```scala
+object TestSpecialType {
+
+    def main(args: Array[String]): Unit = {
+
+      //null可以赋值给任意引用类型（AnyRef），但是不能赋值给值类型（AnyVal）
+        var n1: Int = null // 错误
+        println("n1:" + n1)
+
+        var cat = new Cat();
+        cat = null	// 正确
+        
+        
+        def sayOk : Unit = {// unit表示没有返回值，即void
+            println("say ok")
+        }
+        sayOk
+        
+        
+        // Nothing
+        def test() : Nothing={
+            throw new Exception()
+        }
+        test
+        
+        
+        var c = -99.9
+        val x = if (c > 0) {    //所以这里返回double
+            throw new IllegalArgumentException("有错误！")  //返回Nothing
+            // "有错误"   如果用这个，那么返回值就不是double，而是Any了
+        } else {
+          Math.sqrt(c)    //返回double
+        }
+    }
+}
+```
+
+
+
+## 4.2 类型转换
+
+**1）自动转换**
+
+当Scala程序在进行赋值或者运算时，精度小的类型自动转换为精度大的数值类型，这个就是自动类型转换（隐式转换）。
+
+byte ->short->int -long-float->double 
+
+（1）自动提升原则：有多种类型的数据混合运算时，系统首先自动将所有数据转换成精度大的那种数据类型，然后再进行计算。
+
+（2）当我们把精度大的数值类型赋值给精度小的数值类型时，就会报错，反之就会进行自动类型转换。
+
+（3）（byte，short）和char之间不会相互自动转换。
+
+（4）byte，short，char他们三者可以计算，在计算时首先转换为int类型。
+
+
+
+**2）强制转换**
+
+​		自动类型转换的逆过程，将精度大的数值类型转换为精度小的数值类型。使用时要加上强制转函数，但可能造成精度降低或溢出，格外要注意。
+
+（1）当进行数据的从大——>小，就需要使用到强制转换
+
+（2）强转符号只针对于最近的操作数有效，往往会使用小括号提升优先级
+
+```scala
+object TestForceTransfer {
+
+    def main(args: Array[String]): Unit = {
+
+        //（1）当进行数据的从大——>小，就需要使用到强制转换
+        var n1: Int = 2.5.toInt // 这个存在精度损失
+        
+        //（2）强转符号只针对于最近的操作数有效，往往会使用小括号提升优先级
+        var r1: Int = 10 * 3.5.toInt + 6 * 1.5.toInt  // 10 *3 + 6*1 = 36
+        var r2: Int = (10 * 3.5 + 6 * 1.5).toInt  // 44.0.toInt = 44
+
+        println("r1=" + r1 + " r2=" + r2)
+    }
+}
+```
+
+（3）Char类型可以保存Int的常量值，但不能保存Int的变量值，需要强转
+
+（4）Byte和Short类型在进行运算时，当做Int类型处理。
+
+
+
+数值类型和String类型间转换
+
+（1）基本类型转String类型（语法：将基本类型的值+"" 即可）
+
+（2）String类型转基本数值类型（语法：s1.toInt、s1.toFloat、s1.toDouble、s1.toByte、s1.toLong、s1.toShort）
+
+（3）注意事项
+
+在将String类型转成基本数值类型时，要确保String类型能够转成有效的数据，比如我们可以把"123"，转成一个整数，但是不能把"hello"转成一个整数。
+
+```scala
+object TestStringTransfer {
+
+    def main(args: Array[String]): Unit = {
+
+        //（1）基本类型转String类型（语法：将基本类型的值+"" 即可）
+        var str1 : String = true + ""
+        var str2 : String = 4.5 + ""
+        var str3 : String = 100 +""
+
+        //（2）String类型转基本数值类型（语法：调用相关API）
+        var s1 : String = "12"
+
+        var n1 : Byte = s1.toByte
+        var n2 : Short = s1.toShort
+        var n3 : Int = s1.toInt
+        var n4 : Long = s1.toLong
+    }
+}
+```
+
+
+
+# 5. 运算符
+
+- 在scala中，没有真正的运算符，其实都是一个方法（函数）
+
+- 在scala中，调用方法的“.”可以省略
+- 在调用方法的，给方法传参的时候，如果这个方法只有一个参数或者没有参数，那么括号可以省略。
+
+
+
+## 5.1 算符运算符
+
+相比java，没有++和--操作
+
+| 运算符 | 运算       | 范例       | 结果    |
+| ------ | ---------- | ---------- | ------- |
+| +      | 正号       | +3         | 3       |
+| -      | 负号       | b=4; -b    | -4      |
+| +      | 加         | 5+5        | 10      |
+| -      | 减         | 6-4        | 2       |
+| *      | 乘         | 3*4        | 12      |
+| /      | 除         | 5/5        | 1       |
+| %      | 取模(取余) | 7%5        | 2       |
+| +      | 字符串相加 | “He”+”llo” | “Hello” |
+
+```scala
+object ScalaDataType {
+  def main(args: Array[String]): Unit = {
+    var a = 1.+(12)
+    var b = 12 + 12
+  }
+}
+```
+
+
+
+
+
+## 5.2 关系运算符
+
+
+
+| 运算符 | 运算     | 范例  | 结果  |
+| ------ | -------- | ----- | ----- |
+| ==     | 相等于   | 4==3  | false |
+| !=     | 不等于   | 4！=3 | true  |
+| <      | 小于     | 4<3   | false |
+| >      | 大于     | 4>3   | true  |
+| <=     | 小于等于 | 4<=3  | false |
+| >=     | 大于等于 | 4>=3  | true  |
+
+和java的 == ， equals比较，scala有如下等于方式
+
+```scala
+// scala 有==、equals、eq三种等于判定；  eq 的不等用ne表示
+
+== 等价于 equals ；==实现调用equals方法
+eq 比较地址值，等价于java中的==;只能用于AnyRefer；AnyRefer默认equals调用eq，一般重写
+
+
+所以我们一般复写equals和hashcode方法即可，和java类似；
+```
+
+
+
+
+
+
+
+## 5.3 赋值运算符
+
+| **运算符** | **描述**                                       | **实例**                              |
+| ---------- | ---------------------------------------------- | ------------------------------------- |
+| **=**      | 简单的赋值运算符，将一个表达式的值赋给一个左值 | C = A + B 将 A + B 表达式结果赋值给 C |
+| **+=**     | 相加后再赋值                                   | C += A 等于 C = C + A                 |
+| **-=**     | 相减后再赋值                                   | C -= A 等于 C = C - A                 |
+| ***=**     | 相乘后再赋值                                   | C *= A 等于 C = C * A                 |
+| **/=**     | 相除后再赋值                                   | C /= A 等于 C = C / A                 |
+| **%=**     | 求余后再赋值                                   | C %= A 等于 C = C % A                 |
+| **<<=**    | 左移后赋值                                     | C <<= 2  等于 C = C << 2              |
+| **>>=**    | 右移后赋值                                     | C >>= 2  等于 C = C >> 2              |
+| **&=**     | 按位与后赋值                                   | C &= 2   等于 C = C & 2               |
+| **^=**     | 按位异或后赋值                                 | C ^= 2   等于 C = C ^ 2               |
+| **\|=**    | 按位或后赋值                                   | C \|= 2   等于 C = C \| 2             |
+
+
+
+## 5.4 逻辑运算符
+
+| **运算符** | **描述** | **实例**                   |
+| ---------- | -------- | -------------------------- |
+| **&&**     | 逻辑与   | (A && B) 运算结果为 false  |
+| **\|\|**   | 逻辑或   | (A \|\| B) 运算结果为 true |
+| **!**      | 逻辑非   | !(A && B) 运算结果为 true  |
+
+
+
+## 5.5 位运算符
+
+| **运算符** | **描述**       | **实例**                                                     |
+| ---------- | -------------- | ------------------------------------------------------------ |
+| **&**      | 按位与运算符   | (a & b) 输出结果 12 ，二进制解释： 0000 1100                 |
+| **\|**     | 按位或运算符   | (a \| b) 输出结果 61 ，二进制解释： 0011 1101                |
+| **^**      | 按位异或运算符 | (a ^ b) 输出结果 49 ，二进制解释： 0011 0001                 |
+| **~**      | 按位取反运算符 | (~a ) 输出结果 -61 ，二进制解释： 1100 0011， 在一个有符号二进制数的补码形式。 |
+| **<<**     | 左移动运算符   | a << 2 输出结果 240 ，二进制解释： 1111 0000                 |
+| **>>**     | 右移动运算符   | a >> 2 输出结果 15 ，二进制解释： 0000 1111                  |
+| **>>>**    | 无符号右移     | A >>>2 输出结果 15, 二进制解释: 0000 1111                    |
+
+
+
+## 5.6 没有三目运算符
+
+```scala
+# 可以通过如下方式替换  int c= 1>2 ? 1 : 2
+var c = if (1>2) 1 else  2
+```
+
+
+
+
+
+# 6.语句都有返回值
+
+​		在scala中，任何语句都有（表达式，执行的语句）值！是最后一行代码的值自动返回。
+
+```scala
+  def main(args: Array[String]): Unit = {
+
+   //if 返回最后一行代码   
+    var c = if (1>2) 1 else  2
+    println(c)
+      
+    var m =10
+    println(m +=12)  //  输出 （） ； 表示赋值语句返回Unit结果； 和java完全不同，java会返回22 
+    println(m = 20)  //输出 （）   
+      
+  }
+```
+
+
+
+
+
+# 6.流程控制
+
+
+
+流程：分为 顺序，分支，循环三种流程
+
+
+
+## 6.1 分支控制
+
+让程序有选择的的执行，分支控制有三种：单分支、双分支、多分支
+
+if；  if/else if else/  和java类似
+
+在Scala中没有Switch，而是使用**模式匹配**来处理，语法有点像。
+
+
+
+## 6.2 循环控制
+
+### 1）for循环
+
+​		Scala也为for循环这一常见的控制结构提供了非常多的特性，这些for循环的特性被称为for推导式或for表达式。
+
+```scala
+/** 1. 范围数据循环方式1 基本语法
+		1）i 表示循环的变量，<- 规定to 
+		2）i 将会从 1-3 循环，前后闭合
+*/
+for(i <- 1 to 3){
+  print(i + " ")
+}
+
+
+/** 2.范围数据循环方式2 基本语法
+		（1）这种方式和前面的区别在于i是从1到 3-1
+		（2）即使前闭合后开的范围
+
+*/
+for(i <- 1 until 3) {
+  print(i + " ")
+}
+
+
+/**3. 循环守卫,基本语法
+说明：
+（1）循环守卫，即循环保护式（也称条件判断式，守卫）。保护式为true则进入循环体内部，为false则跳过，类似于continue。
+
+*/
+for(i <- 1 to 3 if i != 2) {
+  print(i + " ")
+}
+
+//等价于
+for (i <- 1 to 3){
+	if (i != 2) {
+		print(i + "")
+	}
+}
+
+/** 4. 循环步长 基本语法
+		说明：by表示步长
+*/
+for (i <- 1 to 10 by 2) {
+      println("i=" + i)
+    }
+
+/** 5. 嵌套循环 基本语法
+		说明：没有关键字，所以范围后一定要加；来隔断逻辑
+
+*/
+
+for(i <- 1 to 3; j <- 1 to 3) {
+    println(" i =" + i + " j = " + j)
+}
+//等价于
+for (i <- 1 to 3) {
+    for (j <- 1 to 3) {
+        println("i =" + i + " j=" + j)
+    }
+}
+
+/** 6. 引入变量 基本语法
+说明：
+（1）for推导式一行中有多个表达式时，所以要加；来隔断逻辑
+（2）for推导式有一个不成文的约定：当for推导式仅包含单一表达式时使用圆括号，当包含多个表达式时，一般每行一个表达式，并用花括号代替圆括号，如下
+
+*/
+for(i <- 1 to 3; j = 4 - i) {
+    println("i=" + i + " j=" + j)
+}
+for{i <- 1 to 3
+    j = 4 - i} {
+    println("i=" + i + " j=" + j)
+}
+
+// 等价于
+for (i <- 1 to 3) {
+    var j = 4 - i
+    println("i=" + i + " j=" + j)
+}
+
+/** 7.循环返回值 基本语法
+	说明：将遍历过程中处理的结果返回到一个新Vector集合中，使用yield关键字
+
+*/
+val res = for(i <- 1 to 10) yield i
+println(res)   //打印 Vector(12, 13, 14, 15)
+
+```
+
+
+
+### 2）while循环
+
+和Java操作完全相同
+
+**1. while循环**
+
+```scala
+//循环变量初始化 基本语法
+while (循环条件) {
+      循环体(语句)
+      循环变量迭代
+}
+```
+
+说明：
+
+- （1）循环条件是返回一个布尔值的表达式
+- （2）while循环是先判断再执行语句
+- （3）与if语句不同，while语句没有返回值，即整个while语句的结果是Unit类型()
+- （4）因为while中没有返回值，所以当要用该语句来计算并返回结果时，就不可避免的使用变量，而变量需要声明在while循环的外部，那么就等同于循环的内部对外部的变量造成了影响，也就违背了函数式编程的重要思想（输入=>函数=>输出，不对外界造成影响），所以不推荐使用，而是推荐使用for循环。
+
+
+
+**2. do while 循环**
+
+```scala
+//1）循环变量初始化 基本语法
+   do{
+       循环体(语句)
+       循环变量迭代
+
+   } while(循环条件)
+```
+
+​	说明
+
+- （1）循环条件是返回一个布尔值的表达式
+
+- （2）do..while循环是先执行，再判断
+
+
+
+### 3）嵌套循环
+
+（1）将一个循环放在另一个循环体内，就形成了嵌套循环。其中，for，while，do…while均可以作为外层循环和内层循环。【**建议一般使用两层，最多不要超过3层**】
+
+（2）实质上，嵌套循环就是把内层循环当成外层循环的循环体。当只有内层循环的循环条件为false时，才会完全跳出内层循环，才可结束外层的当次循环，开始下一次的循环。
+
+（3）设外层循环次数为m次，内层为n次，则内层循环体实际上需要执行**m\*n**次。
+
+
+
+### 4）嵌套中断
+
+​			Scala内置控制结构特地**去掉了**break和continue**，是为了更好的适应**函数式编程，推荐使用函数式的风格解决break和continue的功能，而不是一个关键字。scala中使用breakable控制结构来实现break和continue功能。
+
+（1）break：breakable放在循环外
+
+（2）continue：breakable放在循环内
+
+如下：
+
+```scala
+// 表示 continue，breakable放在循环内
+object TestBreak {
+
+    def main(args: Array[String]): Unit = {
+        var n = 0
+        while (n < 10) {
+            Breaks.breakable {
+                n += 1
+                if (n % 2 != 0) {
+                    println(n)
+                } else {
+                    println("continue")
+                    Breaks.break()
+                }
+            }
+        }
+    }
+}
+
+
+// 表示 break，breakable放在循环外
+object TestBreak {
+
+    def main(args: Array[String]): Unit = {
+        var n = 1
+        Breaks.breakable {
+            while (n < 10) {
+                println("n=" + n)
+                n += 1
+                if (n == 5) {
+                    Breaks.break()		 //（） 可以省略； Breaks.break
+                }
+            }
+        }
+        println("exit")
+    }
+}
+```
+
+原理:通过**抛异常**，然后捕捉异常 来跳出循环
+
+```scala
+ try {
+   while (i > 1) {
+     if (i % 2 == 0) {
+       println(i)
+     } else {
+       throw  new Exception("异常")
+     }
+     i -= 1
+   }
+ } catch { //这里捕捉处理的。可以看看Breaks的源码可以得知
+   case _ =>
+ }
+```
+

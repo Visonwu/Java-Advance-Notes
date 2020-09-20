@@ -251,6 +251,7 @@ export HBASE_MANAGES_ZK=false    #由HBase负责启动和关闭Zookeeper
     <value>slave01,slave02,slave03</value>
 </property>
 <property>
+    	<!--hbase在zk的数据存储位置-->
         <name>hbase.zookeeper.property.dataDir</name>
      <value>/usr/local/zookeeper-3.4.10/datas</value>
 </property>
@@ -258,7 +259,9 @@ export HBASE_MANAGES_ZK=false    #由HBase负责启动和关闭Zookeeper
 
 
 
-## 3. 配置*conf/regionservers* 
+## 3. 配置conf/regionservers
+
+​	配置三台机器的域名
 
 ```text
 slave01
@@ -291,8 +294,6 @@ slave03
 	三台机器都停止regionserver: xcall /usr/lcoal/hbase/bin/hbase-daemon.sh stop regionserver
 	选择一台停止master: /usr/lcoal/hbase/bin/hbase-daemon.sh stop master
 ```
-
-
 
 
 
