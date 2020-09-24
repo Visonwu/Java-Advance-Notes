@@ -32,6 +32,13 @@ Pizza和Scala极大地推动了Java编程语言的发展。
 
 
 
+```java
+public void main(String[] args){
+
+	Predef.println("hello"); // 可以通过Predef调用scala类库
+}
+```
+
 
 
 ### 4. Scala语言特点

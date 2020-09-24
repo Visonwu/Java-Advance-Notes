@@ -1,0 +1,720 @@
+# 1.函数定义
+
+```scala
+//def  函数名(参数名：参数类型...)：返回值类型={函数体}
+def  sum (a:Int,b:Int):Int={a+b}
+```
+
+
+
+# 2.函数和方法的区别
+
+- 1）为完成某一功能的程序指令（语句）的集合，称为函数。
+
+- 2）类中的函数称之方法。
+
+**区别：**
+
+（1）Scala语言的语法非常灵活，可以在任何的语法结构中声明任何的语法（函数内）
+
+（2）**函数没有重载和重写的概念；方法可以进行重载和重写**
+
+（3）scala中函数可以嵌套定义
+
+
+
+
+
+```scala
+object TestFunction {
+
+    // (2)方法可以进行重载和重写，程序可以执行
+    def main(): Unit = {
+
+    }
+
+    def main(args: Array[String]): Unit = {
+        // （1）Scala语言的语法非常灵活，可以在任何的语法结构中声明任何的语法
+        import java.util.Date
+        new Date()
+
+        // (2)函数没有重载和重写的概念，程序报错
+        def test(): Unit ={
+            println("无参，无返回值")
+        }
+        test()
+
+        def test(name:String):Unit={
+            println()
+        }
+
+        //（3）scala中函数可以嵌套定义
+        def test2(): Unit ={
+
+            def test3(name:String):Unit={
+                println("函数可以嵌套定义")
+            }
+        }
+    }
+}
+```
+
+
+
+**其他微妙差别**
+
+```scala
+def main(args: Array[String]): Unit = {    
+	def oo(): Unit = {
+      print("oo")
+    }
+    //1.函数可以作为值传递，方法不行；严格意义来讲def定义的叫方法
+    //2方法转函数
+    //2.1 通过 _ 把我们的方法转换了函数，o就是函数了
+    var o = oo _
+    //2.2 有环境，scala自动转换；声明变量类型 转方法为函数， 下面的() => Unit设置o2的类型  设置返回值就不用 _
+    var o2: () => Unit = oo
+
+    //3.直接声明函数，函数不能声明返回值类型，只能靠推导
+    var p1 = () => Unit
+    var p: Int => Int = (a: Int) => a * a //Int => Int 表示函数类型
+}
+```
+
+
+
+
+
+# 3.函数参数
+
+（1）可变参数
+
+（2）如果参数列表中存在多个参数，那么可变参数一般放置在最后
+
+（3）参数默认值
+
+（4）带名参数
+
+```scala
+object TestFunction {
+
+    def main(args: Array[String]): Unit = {
+
+        // （1）可变参数
+        def test( s : String* ): Unit = {
+            println(s)
+        }
+
+        // 有输入参数：输出 Array
+        test("Hello", "Scala")
+
+        // 无输入参数：输出List()
+        test()
+
+        // (2)如果参数列表中存在多个参数，那么可变参数一般放置在最后
+        def test2( name : String, s: String* ): Unit = {
+            println(name + "," + s)
+        }
+        /*
+        可变参数一般放置在最后
+        def test2( s: String*,name : String ): Unit = {
+            println(name + "," + s)
+        }
+        */
+        test2("jinlian", "dalang")
+
+        // (3)参数默认值
+        def test3( name : String, age : Int = 30 ): Unit = {
+            println(s"$name, $age")
+        }
+
+        // 如果参数传递了值，那么会覆盖默认值
+        test3("jinlian", 20)
+
+        // 如果参数有默认值，在调用的时候，可以省略这个参数
+        test3("dalang")
+
+
+        def test4( sex : String = "男", name : String ): Unit = {
+            println(s"$name, $sex")
+        }
+
+        // scala函数中参数传递是，从左到右
+        // 一般情况下，将有默认值的参数放置在参数列表的后面
+//        test4("wusong")
+
+        //（4）带名参数,通过带名参数，可以不管参数顺序
+        test4(name="ximenqing")
+    }
+}
+```
+
+
+
+# 4.函数的至简原则
+
+**函数至简原则：能省则省**
+
+（1）return可以省略，Scala会使用函数体的最后一行代码作为返回值
+
+（2）返回值类型如果能够推断出来，那么可以省略
+
+（3）如果函数体只有一行代码，可以省略花括号
+
+（4）如果函数无参，则可以省略小括号。若定义函数时省略小括号，则调用该函数时，也需省略小括号；若定时函数时未省略，则调用时，可省可不省。
+
+（5）如果函数明确声明Unit，那么即使函数体中使用return关键字也不起作用
+
+（6）Scala如果想要自动推断无返回值，可以省略等号
+
+（7）如果不关心名称，只关系逻辑处理，那么函数名（def）可以省略
+
+（8）如果函数明确使用return关键字，那么函数返回就不能使用自行推断了，需要声明返回值类型
+
+```scala
+object TestFunction {
+
+    def main(args: Array[String]): Unit = {
+
+        // 0）函数标准写法
+        def f1( s : String ): String = {
+            return s + " jinlian"
+        }
+        println(f1("Hello"))
+
+        // 至简原则:能省则省
+
+        //（1） return可以省略,scala会使用函数体的最后一行代码作为返回值
+        def f2( s : String ): String = {
+            s + " jinlian"
+        }
+        println(f2("Hello"))
+
+        // 如果函数名使用return关键字，那么函数就不能使用自行推断了,需要声明返回值类型
+        /*
+        def f22(s:String)={
+            return "jinlian"
+        }
+        */
+        
+        //（2）返回值类型如果能够推断出来，那么可以省略
+        def f3( s : String ) = {
+            s + " jinlian"
+        }
+
+        println(f3("Hello"))
+
+        //（3）如果函数体只有一行代码，可以省略花括号
+        //def f4(s:String) = s + " jinlian"
+        //def f4(s:String) = "jinlian"
+        def f4() = " dalang"
+
+        // 如果函数无参，但是声明参数列表，那么调用时，小括号，可加可不加。
+        println(f4())
+        println(f4)
+
+        //（4）如果函数没有参数列表，那么小括号可以省略,调用时小括号必须省略
+        def f5 = "dalang"
+        // val f5 = "dalang"
+
+        println(f5)
+
+        //（5）如果函数明确声明unit，那么即使函数体中使用return关键字也不起作用
+        def f6(): Unit = {
+            //return "abc"
+            "dalang"
+        }
+        println(f6())
+
+        //（6）scala如果想要自动推断无返回值,可以省略等号
+        // 将无返回值的函数称之为过程
+        def f7() {
+            "dalang"
+        }
+        println(f7())
+
+        //（7）如果不关心名称，只关系逻辑处理，那么函数名（def）可以省略
+        //()->{println("xxxxx")}
+        val f = (x:String)=>{"wusong"}
+
+        // 万物皆函数 : 变量也可以是函数
+        println(f("ximenqing"))
+
+        //（8）如果函数明确使用return关键字，那么函数返回就不能使用自行推断了,需要声明返回值类型
+        def f8() :String = {
+            return "ximenqing"
+        }
+        println(f8())
+
+    }
+}
+```
+
+# 5.高阶函数
+
+​	可以把函数当成一个值传递给另外一个函数
+
+```
+定义： 函数f可以返回一个函数，也可以接受一个或多个函数作为参数,那么函数f就称为高阶函数
+```
+
+
+
+```scala
+object ScalaDataType {
+
+  //返回函数
+  def main(args: Array[String]): Unit = {
+
+    def aa(a: Int) = {   //返回内部函数bb
+      def bb(b: Int) = {
+        println("内层函数")
+        b
+      }
+      println("外层函数")
+      bb _   // bb _ 表示返回当前函数，而不是调用函数
+    }
+    val cc =aa(12)(13)  //调用上面的函数
+    println(cc)
+
+    var dd = Math.ceil _   //类似这里的 _ 表示返回当前函数
+
+    var ff = dd(12.3)
+    println(ff)
+  }
+}
+```
+
+
+
+
+
+```scala
+object TestFunction {
+
+   
+    def main(args: Array[String]): Unit = {
+
+        //高阶函数————函数作为参数
+        def calculator(a: Int, b: Int, operater: (Int, Int) => Int): Int = {
+            operater(a, b)
+        }
+
+        //函数————求和
+        def plus(x: Int, y: Int): Int = {
+            x + y
+        }
+
+        //方法————求积
+        def multiply(x: Int, y: Int): Int = {
+            x * y
+        }
+
+        //函数作为参数
+        println(calculator(2, 3, plus))
+        println(calculator(2, 3, multiply))
+        
+        // 通过Any实现传参
+        def f()={
+          println("f")
+        }
+
+        def foo(x:Any)={
+          println("foo"+x)
+        }
+
+        foo(f)   //先调用f函数，然后在调用foo
+        foo(f _) //f函数作为参数传递，在调用foo
+    }
+}
+```
+
+
+
+# 6.匿名函数
+
+```
+匿名函数: 没有名字的函数就是匿名函数
+用处：作为实参 传递给高阶函数
+      直接作为高阶函数的 返回值
+```
+
+```scala
+    var foo = () => print("foo")
+    f((x, y) => x + y)
+
+    f(_ + _) //这一行代码和上面效果相同；
+
+    def f(a: (Int, Int) => Int) = {
+      println(a(1, 2))
+    }
+
+//上面的f(_ + _) 解释：
+ // 1. 匿名参数只有两个
+ // 2. 每一个参数只使用了一次
+ // 3. 第一个_表示表示第一参数，第二个_表示表示第二参数
+// 比如: f( _ * _)
+```
+
+
+
+
+
+# 7.手动实现foreach,map,filter,reduce
+
+````scala
+
+  def main(args: Array[String]): Unit = {
+  
+  
+    var arr = Array(10, 20, 31, 40, 57, 60)
+    //1.foreach
+    foreach(arr, a => println(a)) // println属于 any => Unit满足参数传递
+
+    //2.map
+    var bb = map(arr, _ + 1)
+    println(bb.mkString(","))
+
+    //3.filter
+    // var cc = filter(arr, x => x % 2 == 0)
+    var cc = filter(arr, _ % 2 == 0) //x => x可以简写为 _
+    println(cc.mkString(","))
+
+    //4.reduce
+    var dd = reduce(arr, _ / _ )
+    println(dd)
+  
+  }
+
+
+  /**
+   * 聚合操作
+   *
+   * @param arr 数组
+   * @param op  操作
+   */
+  def reduce(arr: Array[Int], op: (Int, Int) => Int): Int = {
+    var sum = arr(0); // 不能初始化为0，否则做乘除结果不多
+    for (i <- 1 until arr.length) {
+      sum = op(sum, arr(i))
+    }
+    sum
+  }
+
+  /**
+   * 映射
+   *
+   * @param arr 数组
+   * @param op  映射操作
+   * @return
+   */
+  def map(arr: Array[Int], op: Int => Int): Array[Int] = {
+    for (elem <- arr) yield op(elem)  //使用for yield
+  }
+
+  /**
+   * 过滤
+   *
+   * @param arr       数组
+   * @param condition 返回true留下
+   */
+  def filter(arr: Array[Int], condition: Int => Boolean) = {
+    for (elem <- arr if condition(elem)) yield elem
+  }
+
+  /**
+   * foreach
+   *
+   * @param arr 数组
+   * @param op  操作
+   */
+  def foreach(arr: Array[Int], op: Int => Unit): Unit = {
+    for (elem <- arr) {
+      op(elem)
+    }
+  }
+````
+
+
+
+# 8.函数闭包
+
+闭包：就是**一个函数**和与**其相关的引用环境（变量）**组合的一个**整体**(实体)
+
+简化来讲：如果函数访问到了外部的变量，即这个函数加上外部的变量就称为闭包；
+
+原理：闭包会阻止外部局部变量的销毁,可以将局部变量延伸到函数的外部
+
+```scala
+	def foo() = {
+      var a = 10
+      (b: Int) => a + b
+    }
+
+    val f1 = foo() //按理说局部变量a在这一步已经销毁了，但是下面函数还能得到a的值
+    val vl = f1(10) //这个访问到了 foo中的局部变量a的值，因为闭包的原因
+    println(vl)
+
+
+-------------------
+//理解闭包
+
+    def test() ={
+      var a =10
+      ()=>{a+=1;a}
+    }
+
+    val aa = test()  //局部变量a被延伸到test函数外
+    println(aa()) //11
+    println(aa()) //12
+
+    val bb = test()  //新的闭包；局部变量a被延伸到test函数外
+    println(bb()) //11
+    println(bb()) //12
+```
+
+
+
+# 9.柯里化
+
+函数柯里化：将一个接收多个参数的函数转化成一个接受一个参数的函数过程，可以简单的理解为一种特殊的参数列表声明方式。
+
+```scala
+object TestFunction {
+
+  val sum = (x: Int, y: Int, z: Int) => x + y + z
+
+  val sum1 = (x: Int) => {
+    y: Int => {
+      z: Int => {
+        x + y + z
+      }
+    }
+  }
+
+  val sum2 = (x: Int) => (y: Int) => (z: Int) => x + y + z
+
+  def sum3(x: Int)(y: Int)(z: Int) = x + y + z
+
+  def main(args: Array[String]): Unit = {
+
+    sum(1, 2, 3)
+    sum1(1)(2)(3)
+    sum2(1)(2)(3)
+    sum3(1)(2)(3)
+    
+  }
+}
+```
+
+
+
+# 10.递归
+
+一个函数/方法在函数/方法体内又调用了本身，我们称之为递归调用
+
+分为**递归和尾递归**；尾递归不易栈溢出，通过循环优化实现。
+
+```scala
+object TestFunction {
+
+    def main(args: Array[String]): Unit = {
+
+        // 阶乘
+        // 递归算法
+        // 1) 方法调用自身
+        // 2) 方法必须要有跳出的逻辑
+        // 3) 方法调用自身时，传递的参数应该有规律
+        // 4) scala中的递归必须声明函数返回值类型
+
+        println(test(5))
+    }
+
+	//递归
+    def test( i : Int ) : Int = {
+        if ( i == 1 ) {
+            1
+        } else {
+            i * test(i-1)
+        }
+    }
+
+	//尾递归，走到最深处就是结果，不需要返回调用	
+   def factorial(n: Int): Unit = {
+    	if (n == 1) throw new RuntimeException
+    	else factorial(n-1)  //尾递归，递归的时候只有递归，没有其他运算，scala做了优化 用循环实现
+    }
+    
+    
+  
+}
+```
+
+阶乘的两种实现：
+
+```scala
+def main(args: Array[String]): Unit = {    
+  //计算阶乘
+    val i = factorial(10)
+    val i1 = factorial(10, 1)
+    println(i)
+    println(i1)
+  }
+
+  //递归实现
+  def factorial(n: Int): Int = {
+    if (n == 1) 1 
+    else n * factorial(n - 1)
+  }
+
+  //尾递归实现,查询到深处执行了就返回，不会返回，  @scala.annotation.tailrec检查尾递归
+  @scala.annotation.tailrec
+  def factorial(n: Int, acc: Int): Int = {
+    if (n == 1) acc
+    else factorial(n - 1, n * acc)
+  }
+}
+```
+
+
+
+# 11. 值传递和名传递
+
+```
+调用函数传值的方式
+1.默认使用的是值传递
+2.名传递，传递的是代码，而不是计算后的值;在函数内部用一次就调用一次
+```
+
+
+
+```scala
+
+  def main(args: Array[String]): Unit = {
+
+    foo1(3 + 4) // 传递的是值7过去
+    //值调用 {}表示代码块
+    foo1({
+      println("1")
+      println("2")
+      100
+    })
+    //输出
+    // 1
+    // 2
+    // 100
+    // 100
+
+
+    // -----------------------
+    //名调用，{}表示代码块
+    foo2({
+      println("1")
+      println("2")
+      100
+    })
+
+    //输出如下，代码调用一次执行一次
+    //  1
+    //  2
+    //  100
+    //  1
+    //  2
+    //  100
+
+
+
+    //上面的小括号可以省略掉，所以可以如下表示
+    foo2 {
+      println("1")
+      println("2")
+      100
+    }
+  }
+
+  //值传递
+  def foo1(a: Int): Unit = {
+    println(a)
+    println(a)
+  }
+
+  //参数接受一段代码，这段代码接受计算后的值是Int
+  def foo2(a: => Int): Unit = {
+    println(a)
+    println(a)
+  }
+
+```
+
+
+
+# 12. 控制抽象
+
+Scala中可以自己定义类似于if-else，while的流程控制语句，即所谓的控制抽象。
+
+如下自己实现循环，使用柯里化，名调用，尾递归
+
+```scala
+object MyLoop {
+
+  def main(args: Array[String]): Unit = {
+
+    var a: Int = 10
+    loop(a > 1) {
+      println(a)
+      a -= 1
+    }
+
+    //可以看成柯里化,把两个参数用 名调用，每次都使用都会调用一次
+    //分别使用了 柯里化，名调用，尾递归
+    loop(a > 1) ({
+      println(a)
+      a -= 1
+    })
+
+  }
+
+
+  def loop(condition: => Boolean)(op: => Unit): Unit = {
+    if (condition) {
+      op
+      loop(condition)(op)
+    }
+  }
+
+}
+```
+
+
+
+# 13.惰性求值
+
+​		当**函数返回值被声明为lazy时**，函数的**执行将被推迟**，直到我们**首次对此取值，该函数才会执行**。这种函数我们称之为惰性函数。
+
+注意：lazy不能修饰var类型的变量
+
+```
+主动求值：系统已启动，所有值都计算出来了；优点：后续使用快，缺点：不过影响启动，或者没使用浪费内存
+```
+
+和Java中的懒加载类似
+
+```scala
+object test{
+  lazy val a = {  
+    println("aaa")
+    12
+  }
+
+  def main(args: Array[String]): Unit = {
+
+
+    //惰性求值
+    // 主动求值：系统已启动，所有值都计算出来了
+    //优点：后续使用快，缺点：不过影响启动，或者没使用浪费内存
+    var a = 13
+    println(a)
+  }
+}
+```
+

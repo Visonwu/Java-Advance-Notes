@@ -1,0 +1,869 @@
+# 1.Scala包
+
+1）基本语法
+
+​		package 包名
+
+2）Scala包的三大作用（和Java一样）
+
+（1）区分相同名字的类
+
+（2）当类很多时，可以很好的管理类
+
+（3）控制访问范围
+
+
+
+包命名和java相同
+
+## 1.1 包的声明
+
+包的声明有如下两种方式：
+
+- 1) 直接  package  com.vison.scala
+
+- 2)包语句
+
+  - 在scala中一个.scala文件包含多个类，那么这些类会在同一个包中，有可能类会重名
+
+  - 通过package创建子包
+
+  - ```scala
+    class B
+    package b{ //这个是当前包的子包/b中
+      class B
+    }
+    ```
+
+
+
+## 1.2 导包
+
+导包有如下方式：
+
+- 1) 传统导包，和java相同；在类的顶部导包 import java.util.HashMap
+
+- 2）在任何地方导包，比如在方法内
+
+  - ```scala
+    object Pack {
+      def main(args: Array[String]): Unit = {
+        import java.util.HashMap   //局部导包，只有这个方法内能够访问
+        val map = new util.HashMap[String, String]()
+      }
+     
+    }
+    ```
+
+- 3）其他导包
+
+  | import com.vison.Fruit              | 引入com.vison包下Fruit（class和object）             |
+  | ----------------------------------- | --------------------------------------------------- |
+  | import com.vison._                  | 引入com.vison下的所有成员                           |
+  | import com.vison.Fruit._            | 引入Fruit(object)的所有成员                         |
+  | import com.vison.{Fruit,Vegetable}  | 引入com.vison下的Fruit和Vegetable                   |
+  | import com.vison.{Fruit=>Shuiguo}   | 引入com.vison报下的Fruit并更名为Shuiguo             |
+  | import com.vison.{Fruit=>Shuiguo,_} | 引入com.vison包下的所有成员，并将Fruit更名为Shuiguo |
+  | import com.vison.{Fruit=>`_`,`_`}   | 引入com.vison包下除去Fruit的所有成员                |
+
+
+
+## 1.3 包对象
+
+​			在scala中可以为每个包定义一个同名的包对象，定义在包对象中的成员（变量和方法），作为其对应包下所有class和object的共享变量，可以被直接访问。
+
+
+
+```scala
+package object com{
+	val shareValue="share"
+	def shareMethod()={}
+}
+```
+
+- 若使用java的包管理风格，则包对象一般定义在其对应包下的package.scala文件中，包对象名与包名保持一致。
+
+
+
+## 1.4 scala默认包导入
+
+```scala
+// scala中的三个默认导入分别是
+import java.lang._
+import scala._
+import scala.Predef._
+```
+
+
+
+
+
+## 1.5 访问权限
+
+在Java中，访问权限分为：public，private，protected和默认。在Scala中，你可以通过类似的修饰符达到同样的效果。但是使用上有区别。
+
+（1）scala 中属性和方法的默认访问权限为public，但scala中无public关键字。
+
+（2）private为私有权限，只在类的内部和伴生对象中可用。
+
+（3）protected为受保护权限，Scala中受保护权限比Java中更严格，同类、子类可以访问，同包无法访问。
+
+（4）private[包名]增加包访问权限，包名下的其他类也可以使用
+
+
+
+**权限定制：**
+
+​		权限定制：给某个包开放权限可以访问，如下所示：
+
+```scala
+//语法 ，表示当前定义的内容支持 某一个包访问，其他则不允许
+private[包名]
+```
+
+
+
+```scala
+object Modify {
+
+  def main(args: Array[String]): Unit = {
+
+  
+    val user = new User
+
+  }
+
+  classs User private    //表示主构造器私有，不对外访问
+    
+  class User private[modify] {    //表示主构造器允许modify包访问
+    
+    private[scala] var a: Int = _  //表示主构造器允许scala包访问
+ 
+    private[vison] def fn = {   //表示主构造器允许vison包访问
+    }
+
+  }
+
+}
+```
+
+
+
+
+
+# 2.类和对象
+
+## 2.1 定义类
+
+```scala
+[修饰符] class 类名 {
+  类体
+} 
+```
+
+（1）Scala语法中，类并不声明为public，所有这些类都具有公有可见性（即默认就是public）
+
+（2）一个Scala源文件可以包含多个类
+
+如下：
+
+```scala
+//（1）Scala语法中，类并不声明为public，所有这些类都具有公有可见性（即默认就是public）
+class Person {
+
+}
+
+//（2）一个Scala源文件可以包含多个类
+class Teacher{
+
+}
+//可以省略{}
+class Student
+```
+
+
+
+## 2.2 属性
+
+属性是类的一个组成部分；
+
+- 默认属性是私有的，自动生成了set和get方法，显示调用会调用对应的方法- 
+
+- 反编译会发现生成的  `属性名_$eq`  是set方法，我们也可以这样调用
+- 属性初始化可以用  `_ ` 表示,并且需要表示数据类型；初始化值分如下三种
+  - 数字型初始化为0
+  - boolean 初始化为false
+  - 其他类型为 null
+
+1）基本语法
+
+```scala
+[修饰符] var 属性名称 [：类型] = 属性值
+```
+
+**注：**Bean属性（**@BeanProperty**），可以自动生成规范的setXxx/getXxx方法
+
+案例：
+
+```scala
+object MyLoop {
+
+  def main(args: Array[String]): Unit = {
+
+    var user = new User
+
+    println(user.age)
+    println(user.getName)
+    user.setName("ssss")
+
+    user.age = 100
+    user.age_$eq(12) //age的set原理
+
+    user.eat("草")
+
+  }
+}
+
+class User {
+    
+  @BeanProperty
+  var name:String = _
+  var age = 2
+
+  def eat(obj: String): Unit = {
+    println(s"$name 吃$obj")
+
+  }
+}
+
+// ------User反编译--------
+public class com.vison.scala.User {
+  private java.lang.String name;
+  private int age;
+  public java.lang.String name();
+  public void name_$eq(java.lang.String);
+  public int age();
+  public void age_$eq(int);
+  public void eat(java.lang.String);
+  public com.vison.scala.User();
+}
+
+```
+
+
+
+## 2.3 方法
+
+和函数相同，如下所示
+
+```scala
+def 方法名(参数列表) [：返回值类型] = { 
+	方法体
+}
+```
+
+
+
+## 2.4 创建对象
+
+1）基本语法
+
+```scala
+val | var 对象名 [：类型]  = new 类型()
+```
+
+2）案例实操
+
+（1）val修饰对象，不能改变对象的引用（即：内存地址），可以改变对象属性的值。
+
+（2）var修饰对象，可以修改对象的引用和修改对象的属性值
+
+```scala
+class Person {
+    var name: String = "canglaoshi"
+}
+
+object Person {
+
+    def main(args: Array[String]): Unit = {
+        //val修饰对象，不能改变对象的引用（即：内存地址），可以改变对象属性的值。
+        val person = new Person()
+        person.name = "bobo"
+
+        // person = new Person()// 错误的
+
+        println(person.name)
+    }
+}
+```
+
+## 2.5 构造器
+
+和Java一样，Scala构造对象也需要调用构造方法，并且可以有任意多个构造方法。
+
+Scala类的构造器包括：**主构造器和辅助构造器**
+
+**1) 基本语法**
+
+```scala
+class 类名 {  // 主构造器
+   // 类体
+   def  this(形参列表) {  // 辅助构造器
+       this()
+   }
+   def  this(形参列表) {  //辅助构造器可以有多个...
+       this()
+   }
+}
+
+class 类名(形参列表) {  // 主构造器
+   // 类体
+   def  this(形参列表) {  // 辅助构造器
+   }
+   def  this(形参列表) {  //辅助构造器可以有多个...
+   }
+}
+```
+
+说明：
+
+（1）辅助构造器，函数的名称this，可以有多个，编译器通过参数的个数来区分。
+
+（2）辅助构造方法不能直接构建对象，必须直接或者间接调用主构造方法。
+
+（3）类名上没有定义形参列表，那么主构造器就是无参构造器 
+
+​		如果主构造器无参数，小括号可省略，构建对象时调用的构造方法的小括号也可以省略。
+
+  （4）辅助构造器定义有先后顺序，前面的辅助构造器不能调用后面的辅助构造器
+
+
+
+**2）构造器参数列表**
+
+​		Scala类的主构造器函数的形参包括三种类型：**未用任何修饰、var修饰、val修饰**
+
+（1）未用任何修饰符修饰，这个参数就是一个局部变量，类外部不可访问，如果类中没有使用，scala会自动优化掉
+
+（2）var修饰参数，作为类的成员属性使用，可以修改
+
+（3）val修饰参数，作为类只读属性使用，不能修改，对应java中的final
+
+
+
+Scala类的辅助构造器函数的形参
+
+```scala
+object Obj {
+
+  def main(args: Array[String]): Unit = {
+
+    val lili = new User1(12, "lili", "男")
+    lili.name = "11"
+
+  }
+}
+/**
+ * 1.调用构造器创建对象，可以给对象赋值
+ * 2.类名的后面添加一些属性，这些在创建对象的时候，可以给这些属性赋值
+ * 3. 类名后面跟的就是构造器，这个就是主构造器，后面的参数就是我们的属性;
+ * 4. def this()首行必须调用主构造器，这是辅助构造器
+ *    辅构造的参数，仅仅是这个构造器的一个常量
+ * 5.辅助构造器定义有先后顺序，前面的不能调用后面的
+ *
+ *
+ * @param age  通过val修饰，表示不可更改，只能访问，对应java中final
+ * @param name 通过var修饰，可以访问和修改
+ * @param sex  没有var|val表示，属性私有化只能类内部访问，如果类内部没有访问，这个属性直接会被优化掉
+ */
+class User1(val age: Int, var name: String, sex: String) {
+
+  var a: String = _
+
+  //这个称为辅助构造器
+  def this() {
+    //首行必须调用 主构造器
+    this(22, "张三", "男")
+    //this("1")
+  }
+
+  def this(sex:String) {  //这里的参数只能是一个普通的常量
+    //首行必须调用 主构造器
+    this(22, "张三", sex)  //或者 this()  始终都是第一步都是调用主构造器
+   }
+
+  def fn(): Unit = {
+    println(sex)
+  }
+
+}
+
+class User2{
+
+  def this(sex:String) {  //这里的参数只能是一个普通的常量
+    //首行必须调用 主构造器
+   // this(22, "张三", sex)  //或者 this()  始终都是第一步都是调用主构造器
+    this()
+  }
+}
+```
+
+
+
+## 2.6 给类取别名
+
+`type` 来实现
+
+```scala
+object Obj {
+
+  def main(args: Array[String]): Unit = {
+
+    val lili = new User1(12, "lili", "男")
+    lili.name = "11"
+
+    type U1 = User1      //给类User1取别名为U1
+    var u1 = new U1
+    println(u1.name)
+    println(u1.getClass.getName)
+  }
+```
+
+
+
+# 3. 继承
+
+（1）子类继承父类的**属性**和**方法**
+
+（2）scala是单继承
+
+
+
+
+
+```scala
+// 语法
+class 子类名 extends 父类名  { 类体 }
+```
+
+```scala
+//如下案例
+object Extends1 {
+
+  def main(args: Array[String]): Unit = {
+    var b = new B(10)
+    b.foo()
+    println(b.a)
+    println(b.b)
+  }
+
+}
+
+
+class A(var a: Int) {
+  println("ful-1")
+    
+  def foo(): Unit = {
+    println("父类--")
+  }
+}
+
+class B(var b: Int) extends A(b) {  //需要调用父类的构造器
+
+  println("zi-1")
+    
+  override def foo(): Unit = {   //重写父类方法，需要加上关键之override
+    println("子类--")
+    super.foo() 
+  }
+
+}
+```
+
+
+
+## 3.2 构造
+
+​	继承的调用顺序：父类主构造器->子类主构造器->子类构造器
+
+
+
+## 3.2 覆写
+
+方法覆写和java类似，只是必须要加上override关键字
+
+- val属性只能覆写val 属性和不带参数的def 方法
+- var属性只能覆写抽象的var的属性
+
+
+
+```scala
+class A(var a: Int) {
+  val x = 100
+  var y = 12
+  def z = 12;
+
+  def foo(): Unit = {
+    println("父类--")
+  }
+}
+
+class B(var b: Int) extends A(b) {
+
+  override val  x = 100
+ // override val y: Int = 10  //报错，父类的var 属性不支持覆写，会报错
+
+  override val z =100         // val 可以覆写 def方法
+
+  override def foo(): Unit = {
+    println("子类--")
+    super.foo()
+  }
+
+}
+```
+
+
+
+**和java对比:**
+
+- java方法又多态，属性没有多态
+- scala的方法和属性都支持覆写
+
+
+
+**java如下：**
+
+```scala
+public class Java {
+    public static void main(String[] args) {
+        //java 方法有多态，属性没有多态
+        B b = new B();
+        A a = (B) b;
+        System.out.println(b.a);  // 20
+        System.out.println(a.a);  //10 ,并没有使用子类的属性表示属性没有多态
+
+    }
+}
+
+class A{
+    int a =10;
+}
+
+class B extends A{
+    int a =20;
+}
+```
+
+**scala的实现**
+
+```scala
+
+object Extends1 {
+  def main(args: Array[String]): Unit = {
+    var b:B = new B(1)
+    var a:A = b
+    println(b.x)  //100
+    println(a.x)  //100
+  }
+}
+
+class A{
+  val x = 10
+}
+
+class B(var b: Int) extends A {
+  override val  x = 100
+}
+
+```
+
+
+
+# 4. 抽象类，方法、属性
+
+​	（1）定义抽象类：abstract class Person{} //通过abstract关键字标记抽象类
+
+​	（2）定义抽象属性：val|var name:String //一个属性没有初始化，就是抽象属性
+
+​	（3）定义抽象方法：def hello():String //只声明而没有实现的方法，就是抽象方法
+
+```scala
+
+abstract class A {  //abstract关键字标记抽象类
+  val x = 10
+  var y: Int  //没有初始化，就是抽象属性
+
+  def a(): Unit  //只声明而没有实现的方法，就是抽象方法
+}
+
+class B(var b: Int) extends A {
+
+  override var y: Int = _
+ //??? 可以看下源码
+  override def a(): Unit = ???
+}
+```
+
+
+
+# 5.匿名子类
+
+Java一样，可以通过包含带有定义或重写的代码块的方式创建一个匿名的子类。
+
+```scala
+abstract class Person {
+
+  val name: String
+
+  def hello(): Unit
+}
+
+object Test {
+
+  def main(args: Array[String]): Unit = {
+
+    val person = new Person {
+
+      override val name: String = "teacher"
+
+      override def hello(): Unit = println("hello teacher")
+    }
+  }
+}
+```
+
+
+
+# 6.单例对象
+
+​			Scala语言是完全面向对象的语言，所以并没有静态的操作（即在Scala中没有静态的概念）。但是为了能够和Java语言交互（因为Java中有静态概念），就产生了一种特殊的对象来模拟类对象，该对象为**单例对象**。
+
+```scala
+object Person{
+	val country:String="China"
+}
+```
+
+（1）单例对象采用`object`关键字声明
+
+（3）单例对象中的属性和方法都可以通过对象名（类名）直接调用访问
+
+```scala
+//（1）单例对象采用object关键字声明
+object Person {
+  var country: String = "China"
+}
+
+
+object Test {
+  def main(args: Array[String]): Unit = {
+    //23）单例对象中的属性和方法都可以通过对象名直接调用访问。
+    println(Person.country)
+  }
+}
+```
+
+
+
+**apply方法**
+
+实现 apply方法，可以像调用方法一样调用对象，如下所示：
+
+```scala
+object Obj {
+
+  def main(args: Array[String]): Unit = {
+    val i = A()  // A() 等同于A.apply)()
+    println(i)
+  }
+
+
+  object A {
+    def apply():Int =12
+  }
+
+}
+```
+
+
+
+
+
+# 7.伴生对象
+
+​		在同一个scala文件中 若单例对象名与类名一致，则称该单例对象这个类的**伴生对象**，这个类的所有“静态”内容都可以放置在它的伴生对象中声明,这个类称为**伴生类**
+
+- 伴生类和伴生对象可以互相访问对方的私有成员
+- 两者编译为java后可以发现，伴生对象成员就是java中的静态成员；伴生类的成员就是java类中的普通成员
+
+
+
+```scala
+
+object testA{
+  def main(args: Array[String]): Unit = {
+
+    A()  //调用A.apply()
+    val a = new A
+    a()   //调用a.apply()
+  }
+}
+
+object A {  //伴生对象对应伴生类的静态方法
+
+  var a =12;
+  def apply(): Int = {
+    println("伴生对象")
+    12
+  }
+}
+
+class A{   //伴生类是非静态方法
+  var a =12
+
+  def apply(): Int = {
+    println("伴生类")
+    12
+  }
+}
+```
+
+
+
+- **伴生类和伴生对象可以互相访问对方的私有成员**
+
+如下实现工厂创建对象：
+
+```scala
+object Test {
+
+  def main(args: Array[String]): Unit = {
+    //伴生类和伴生对象可以互相访问对方的私有成员
+    println(Human.getHuman("黑色"))
+  }
+
+}
+
+
+class Human private(var color: String){ //私有化构造器
+  override def toString: String = color
+}
+
+object Human {
+
+  //类似工厂 创建Human
+  def getHuman(color:String): Human = {
+    new Human(color) // 可以new Human,
+  }
+}
+```
+
+
+
+
+
+# 8.trait
+
+​		Scala语言中，采用特质trait（特征）来代替接口的概念，也就是说，多个类具有相同的特征（特征）时，就可以将这个特质（特征）独立出来，采用关键字trait声明。trait反编译出来就是java中的接口
+
+- Scala中的trait中即**可以有抽象属性和方法，也可以有具体的属性和方法**，**一个类可以混入多个特质**。
+
+- Scala引入trait特征，第一可以替代Java的接口，第二个也是对单继承机制的一种补充。
+
+- 一个类具有某种特质（特征），就意味着这个类满足了这个特质（特征）的所有要素，所以在使用时，也采用了extends关键字，如果有多个特质或存在父类，那么需要采用with关键字连接（多混入）
+
+```scala
+trait 特质名 {
+	trait体
+}
+
+trait PersonTrait {
+
+    // 声明属性
+    var name:String = _
+
+    // 声明方法
+    def eat():Unit={
+
+    }
+
+    // 抽象属性
+    var age:Int
+    
+    // 抽象方法
+    def say():Unit
+}
+```
+
+
+
+- （1）特质可以同时拥有抽象方法和具体方法
+
+  （2）一个类可以混入（mixin）多个特质
+
+  （3）所有的Java接口都可以当做Scala特质使用
+
+  （4）**动态混入**：可灵活的扩展类的功能
+
+  ​            **（4.1）动态混入：创建对象时混入trait，而无需使类混入该trait**
+
+  ​            （4.2）如果混入的trait中有未实现的方法，则需要实现
+
+```scala
+
+trait Usb{
+  val size:Int
+  var name:String
+  def insert:String = {  
+    "default"
+  }   //编译后会生成Usb$class.class文件，包含一个静态insert方法
+}
+class HuaweiUsb extends Usb {
+  override val size: Int = 100
+  override var name: String = _
+
+  override def insert: String = {
+    "HuaweiUsb"
+  }
+}
+
+
+trait a
+trait  b
+//with(混入)
+abstract  class c extends  a  with b
+
+```
+
+
+
+## 8.1 多混入构造执行顺序
+
+按照继承顺序执行构造方法
+
+```scala
+
+trait a{
+  println("a")
+}
+trait  b{
+  println("b")
+}
+//with(混入)
+  class c extends  a  with b{
+  println("c")
+}
+
+
+object Test1 {
+  def main(args: Array[String]): Unit = {
+    val c = new c
+  }
+}
+```
+
+
+
+## 8.2 多混入
+

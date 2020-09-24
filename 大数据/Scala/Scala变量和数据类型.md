@@ -252,16 +252,13 @@ object TestInput {
 Scala数据类型关系总结：
 
 - 1）Scala中一切数据都是对象，都是Any的子类。
-
 - 2）Scala中数据类型分为两大类：数值类型（AnyVal）、引用类型（AnyRef），**不管是值类型还是引用类型都是对象。**
-
 - 3）Scala数据类型仍然遵守，低精度的值类型向高精度值类型，自动转换（隐式转换）
-
 - 4） Scala特殊的类型之Null，它只有一个实例就是Null，它是所有引用类型（AnyRef）的子类。
-
 - 5）Scala特殊类型之Nothing，是所有数据类型的子类，主要在一个函数没有正常返回值使用，因为这样我们可以把抛出的返回值，返回给任何的变量或者函数。
 - 6）Unit类型对应java中的Void，打印出来是(）；一般用于方法和函数的返回值
-- 7）StringOps可以看成是String的加强版，当Java的string的时候，一些没有方法，自动从这个类型找（隐式转换）
+- 7）StringOps可以看成是String的加强版,不过不是String，当Java的string的时候，一些没有方法，自动从这个类型找（隐式转换）
+- 8）String 类型属于AnyRef,scala仍然使用的java中的String
 
 
 
@@ -539,8 +536,6 @@ var c = if (1>2) 1 else  2
 
 # 6.流程控制
 
-
-
 流程：分为 顺序，分支，循环三种流程
 
 
@@ -559,17 +554,26 @@ if；  if/else if else/  和java类似
 
 ### 1）for循环
 
-​		Scala也为for循环这一常见的控制结构提供了非常多的特性，这些for循环的特性被称为for推导式或for表达式。
+​		Scala也为for循环这一常见的控制结构提供了非常多的特性，这些for循环的特性被称为for推导式或for表达式。for本质是遍历
 
 ```scala
 /** 1. 范围数据循环方式1 基本语法
 		1）i 表示循环的变量，<- 规定to 
 		2）i 将会从 1-3 循环，前后闭合
 */
+ //to方法
+ for (i <- 1.to(100)) {
+   println(i)
+ }
+//简写，省掉.和括号
 for(i <- 1 to 3){
   print(i + " ")
 }
-
+	//遍历字符串
+	var a = "abcddd";
+    for (c <- a) {  //c只读，c是字符类型， <-表示遍历
+      println(c)
+    }
 
 /** 2.范围数据循环方式2 基本语法
 		（1）这种方式和前面的区别在于i是从1到 3-1
@@ -579,6 +583,8 @@ for(i <- 1 to 3){
 for(i <- 1 until 3) {
   print(i + " ")
 }
+
+
 
 
 /**3. 循环守卫,基本语法
@@ -603,6 +609,22 @@ for (i <- 1 to 3){
 for (i <- 1 to 10 by 2) {
       println("i=" + i)
     }
+
+  //to方法，第二个参数是步长
+    for (i <- 1.to(100, 2)) {
+      println(i)
+    }
+
+/**4.1  反转输出100-1; 下面两种方式
+*/
+
+    for (i <- 1 to 100 reverse){
+      println(i)
+    }
+    for (i <- 100 to 1  by -1){
+      println(i)
+    }
+
 
 /** 5. 嵌套循环 基本语法
 		说明：没有关键字，所以范围后一定要加；来隔断逻辑
@@ -643,9 +665,11 @@ for (i <- 1 to 3) {
 	说明：将遍历过程中处理的结果返回到一个新Vector集合中，使用yield关键字
 
 */
-val res = for(i <- 1 to 10) yield i
-println(res)   //打印 Vector(12, 13, 14, 15)
+val res = for(i <- 1 to 10) yield i*i
+println(res)   //打印 Vector(1, 2, 9, 16...)
 
+
+//** 8. for 的默认返回值 Unit
 ```
 
 
