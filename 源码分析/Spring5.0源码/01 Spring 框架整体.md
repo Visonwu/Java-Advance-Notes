@@ -3,7 +3,7 @@
 # 1.Spring5 系统架构
 
 ​        Spring 总共大约有 20 个模块，由 1300 多个不同的文件构成。而这些组件被分别整合在核心容器（Core
-Container）、AOP（Aspect Oriented Programming）和设备支持（Instrmentation）、数据访问及集成（Data Access/Integeration）、Web、报文发送（Messaging）、Test，6 个模块集合中。
+Container）、AOP（Aspect Oriented Programming）和设备支持（Instrumentation）、数据访问及集成（Data Access/Integeration）、Web、报文发送（Messaging）、Test，6 个模块集合中。
 
 
 

@@ -305,7 +305,7 @@ show variables like 'optimizer_switch';
 set optimizer_switch='index_condition_pushdown=on';
 ```
 
-
+在建立联合索引的时候，如果第一个模糊查询，默认不会判断第二个字段，然而索引下推可以判断第二个字段，减少数据的查询，减少IO操作
 
 
 

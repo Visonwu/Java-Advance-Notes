@@ -22,10 +22,10 @@ redis的数据结构都是
 
 ```c
 typdef struct redisObject{
-    unsigned type:4;//类型
-    
+    unsigned type:4;//类型 string,set,list等
     unsigned encoding:4;//编码
-    
+    unsigned lru:LRU_BITS //最后一次访问的时间
+	int refcount; //表示该键值被引用的数量，即一个键值可被多个键引用
     void * prt; //指向底层数据结构的指针
     //...
 }
@@ -63,7 +63,7 @@ redis>object encoding key
 
 **内部结构：**在Redis内部，String类型通过 int、SDS(simple dynamic string)作为结构存储，int用来存放整型数据，sds存放字节/字符串和浮点型数据。在C的标准字符串结构下进行了封装，用来提升基本操作的性能，同时也充分利用已有的C的标准库，简化实现逻辑
 
-编码：int（整数）、raw（redisObject+SDS）或embstr（redisObject+embstr编码的SDS）
+编码：int（整数）、raw（redisObject+SDS）或embstr（redisObject+embstr编码的SDS，连续内存分配）
 
 - 若是整数值，并且该整数值可以用long类型表示，则编码为int；
 - 若是字符串值，并且字符串长度大于32字节，那么将使用SDS保存字符串值，编码为raw；
