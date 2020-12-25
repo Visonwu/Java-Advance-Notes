@@ -321,6 +321,27 @@ private String hellofallback(String name，Throwable e){
 
 ​		Hystrix会根据命令组来组织和统计命令的告警，仪表盘等信息，并且默认情况下线程的划分也是根据命令分组来实现的，相同的组名使用同一个线程池。
 
+```
+//默认groupName就是当前的类名，commandName是接口名称，所以默认情况下每一份类下的接口 各自对应一个线程池相互隔离
+
+    private static HystrixThreadPoolKey initThreadPoolKey(HystrixThreadPoolKey threadPoolKey, HystrixCommandGroupKey groupKey, String threadPoolKeyOverride) {
+        if (threadPoolKeyOverride == null) {
+            // we don't have a property overriding the value so use either HystrixThreadPoolKey or HystrixCommandGroup
+            if (threadPoolKey == null) {
+                /* use HystrixCommandGroup if HystrixThreadPoolKey is null */
+                return HystrixThreadPoolKey.Factory.asKey(groupKey.name()); //使用groupName
+            } else {
+                return threadPoolKey;
+            }
+        } else {
+            // we have a property defining the thread-pool so use it instead
+            return HystrixThreadPoolKey.Factory.asKey(threadPoolKeyOverride);
+        }
+    }
+
+```
+
+
 #### 1） 编程式
 
 ​		通过编程的方式--继承实现的Hystrix，通过构造函数，使用静态类Setter可以设置
