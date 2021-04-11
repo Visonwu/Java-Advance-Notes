@@ -214,7 +214,7 @@ node3
    <name>yarn.nodemanager.aux-services</name>
    <value>mapreduce_shuffle</value>
  </property>
-    
+<!--如下配置可能找不到hadoopMaster，可以删除如下配置-->    
  <property>  
     <name>yarn.resourcemanager.address</name>  
     <value>hadoopMaster:8032</value>  
@@ -267,7 +267,11 @@ $> ssh-copy-id node3
 
 **步骤六：启动**
 
-​	记得先格式化NameNode`hdfs namenode format`
+​	记得先格式化NameNode
+
+```bash
+> hdfs namenode -format
+```
 
 ​     在节点node1启动hdfs，会把三个几点的对应hdfs都启动起来，可以通过jps查看
 
@@ -291,6 +295,8 @@ $> sh start-yarn.sh
 
 ​	通过node2节点访问`192.168.124.153:8088`
 
+注意防火墙开发情况
+
 如果上面不能访问8088 端口,在/etc/hosts中注释掉localhost到127.0.0.1的解析以及localhost转向当前ip地址
 
 ```test
@@ -300,4 +306,14 @@ $> sh start-yarn.sh
 #::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
 192.168.199.132 localhost
 ```
+
+如果不能访问,通过如下查看端口开放情况
+
+```bash
+netstat -tpnl | grep java
+```
+
+
+
+
 

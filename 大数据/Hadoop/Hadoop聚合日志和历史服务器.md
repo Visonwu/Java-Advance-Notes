@@ -56,12 +56,12 @@ yarn logs -applicationId application_1594957740884_0001
     </property>
     <property>
        <name>yarn.log-aggregation-enable</name>
-       <vaule>true></value>
+       <value>true></value>
     </property>
         <!--存放多长时间-->
     <property>
       <name>yarn.log-aggregation.retain-seconds</name>
-      <value>3600<value>
+        <value>3600</value>
     </property>
 </configuration>
 ```
