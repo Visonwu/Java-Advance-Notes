@@ -92,7 +92,7 @@ root> expr `expr 1 + 1` \* 2 - 1
 
 ```
 [ condition ]（注意condition前后要有空格）
-注意：条件非空即为true，[ atguigu ]返回true，[] 返回false。
+注意：条件非空即为true，[ vison ]返回true，[] 返回false。
 	另外前后的判断都要有空格，不然会返回true
 ```
 

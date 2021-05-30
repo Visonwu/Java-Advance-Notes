@@ -7,7 +7,7 @@ Flume组成架构：
 ![U42fvF.png](https://s1.ax1x.com/2020/07/20/U42fvF.png)
 
 - 1.source ：  用户需要根据自己的数据源的类型，选择合适的source对象！
-- 2.sink：    用户需要根据自己的数据存储的目的地的类型，选择合适的sink对象！
+- 2.sink：    用户需要根据自己的数据存 储的目的地的类型，选择合适的sink对象！
 - 3.Interceptors:  在source将event放入到channel之前，调用拦截器对event进行拦截和处理！
 - 4.Channel Selectors:  当一个source对接多个channel时，由 Channel Selectors选取channel将event存
 - 5.sink processor:  当多个sink从一个channel取数据时，为了保证数据的顺序，由sink processor从多个sink中挑选一个sink，由这个sink干活！
@@ -30,7 +30,7 @@ Flume组成架构：
 
 Sink组件目的地包括hdfs、logger、avro、thrift、ipc、file、HBase、solr、自定义。
 
-### **1.4**Channel
+### **1.4 **Channel
 
 ​		Channel是位于Source和Sink之间的缓冲区。因此，Channel允许Source和Sink运作在不同的速率上。Channel是线程安全的，可以同时处理几个Source的写入操作和几个Sink的读取操作。
 
@@ -58,7 +58,7 @@ File Channel将所有事件写到磁盘。因此在程序关闭或机器宕机�
 
 
 
-
+ 
 
 # 二、Flume的安装
 

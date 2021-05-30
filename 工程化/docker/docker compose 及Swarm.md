@@ -14,6 +14,12 @@ yum -y install python-pip
 #pip install docker-compose --timeout 100
 # pip 安装docker-compose可能报错readTimeOUt，可以通过把超时时间设置大一点
 sudo pip --default-timeout=200 install -U docker-compose
+
+#可能需要升级pip，python
+#可能链接国内网站进行升级
+pip install --upgrade "pip<21.0" -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+
+pip install docker-compose -i http://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
 ```
 
 

@@ -1,4 +1,4 @@
-# 1.Hive介绍
+#  1.Hive介绍
 
 ## 1.1 Hive是一个数据仓库软件
 Hive可以使用SQL来促进对已经存在在分布式设备中的数据进行读，写和管理等操作！
@@ -514,8 +514,8 @@ CREATE [EXTERNAL] TABLE [IF NOT EXISTS] table_name
 
 
 其他建表：
-			只复制表结构：  create table 表名 like  表名1   //包含分区表
-			执行查询语句，将查询语句查询的结果(包含你返回的分区列)，按照顺序作为新表的普通列：create table 表名  as select 语句    //不能创建分区表！
+	只复制表结构：  create table 表名 like  表名1   //包含分区表
+	执行查询语句，将查询语句查询的结果(包含你返回的分区列)，按照顺序作为新表的普通列：create table 表名  as select 语句    //不能创建分区表！
 			
 ```
 
